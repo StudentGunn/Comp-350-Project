@@ -11,12 +11,11 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.swing.*;
 
-/**
+/*
  * Simple Swing login/register UI for the Food Delivery app.
- *
- * - Top: welcome message
+ * - Top contains: welcome message
  * - Center: username/password fields with Login and Register
- * - Users  create  to a local CSV file `users.csv` in the working directory for UserData Base
+ * - Users create  to a local CSV file `users.csv` in the working directory for UserData Base
  * - Passwords are stored as SHA-256 hex hashes 
  */
 public class FoodDeliveryLoginUI {
