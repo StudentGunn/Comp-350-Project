@@ -16,8 +16,8 @@ import javax.swing.*;
  *
  * - Top: welcome message
  * - Center: username/password fields with Login and Register
- * - Users persisted to a local CSV file `users.csv` in the working directory
- * - Passwords are stored as SHA-256 hex hashes (no salt) — replace with a proper KDF for production
+ * - Users  create  to a local CSV file `users.csv` in the working directory for UserData Base
+ * - Passwords are stored as SHA-256 hex hashes 
  */
 public class FoodDeliveryLoginUI {
 
@@ -103,7 +103,7 @@ public class FoodDeliveryLoginUI {
         if (stored != null && stored.equals(hash)) {
             messageLabel.setForeground(new Color(0, 128, 0));
             messageLabel.setText("Login successful. Welcome, " + user + "!");
-            // Clear fields
+            // Clear the fields
             passField.setText("");
         } else {
             messageLabel.setText("Invalid username or password.");
@@ -142,7 +142,7 @@ public class FoodDeliveryLoginUI {
         }
     }
 
-    // --- user persistence ---
+    // --- users ---
 
     private void loadUsers() {
         users.clear();
@@ -166,7 +166,7 @@ public class FoodDeliveryLoginUI {
         Files.writeString(USER_DB, line, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
     }
 
-    // --- utilities ---
+    // --- Save User & Pass/ ---
 
     private static String sha256Hex(String input) {
         try {
