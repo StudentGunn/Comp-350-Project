@@ -156,7 +156,7 @@ public class FoodDeliveryLoginUI {
             System.err.println("Failed to read user db: " + ex.getMessage());
         }
     }
-
+    // Change this to a database, not a user.css file
     private void appendUserToFile(String user, String hash) throws IOException {
         if (!Files.exists(USER_DB)) {
             Files.createFile(USER_DB);
