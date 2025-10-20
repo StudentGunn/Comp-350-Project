@@ -7,36 +7,56 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.swing.*;
 
 /*
  * Simple Swing login/register UI for the Food Delivery app.
- * - Top contains: welcome message
+ * - Top: welcome message
  * - Center: username/password fields with Login and Register
- * - Users create  to a local CSV file `users.csv` in the working directory for UserData Base
- * - Passwords are stored as SHA-256 hex hashes 
+ * - Users Saved to a local SQLite database `users.db` in the working directory
+ * - Passwords are stored as SHA-256 hex hashes replace with a proper KDF for production
  */
 public class FoodDeliveryLoginUI {
 
     private static final Path USER_DB = Path.of("users.csv");
 
     private final JFrame frame = new JFrame("Food Delivery Service");
-    private final JPanel main = new JPanel(new BorderLayout(10, 10));
+    // use a custom panel that can draw a color or an image as background
+    private final BackgroundPanel main = new BackgroundPanel();
 
     private final JTextField userField = new JTextField(15);
     private final JPasswordField passField = new JPasswordField(15);
     private final JLabel messageLabel = new JLabel(" ", SwingConstants.CENTER);
+    // expose title so we can toggle opacity when admin wants the image to cover whole UI
+    private final ShadowLabel titleLabel = new ShadowLabel("Welcome to ordering with Food Delivery Service");
 
     private final JPanel centerPanel = new JPanel(new GridBagLayout());
+    // a card panel so form controls are readable over image backgrounds
+    private final JPanel cardPanel = new JPanel(new GridBagLayout());
 
-    private final Map<String, String> users = new HashMap<>(); // username -> sha256(password)
+    private final Map<String, String> users = new HashMap<>(); // kept for compatibility but not used for persistence
+    private UserDatabase userDb;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             FoodDeliveryLoginUI app = new FoodDeliveryLoginUI();
-            app.loadUsers();
+            // initialize SQLite DB
+            try {
+                app.userDb = new UserDatabase(java.nio.file.Path.of("users.db"));
+                app.userDb.init();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(null, "Failed to initialize user database: " + ex.getMessage(), "DB error", JOptionPane.ERROR_MESSAGE);
+            }
+            try {
+                app.setBackgroundImage(java.nio.file.Paths.get("C:\\Users\\skylg\\OneDrive\\Desktop\\Food Deilvery app.jpg"), true);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(null, "Failed to load background image: " + ex.getMessage(), "Image load error", JOptionPane.ERROR_MESSAGE);
+            }
             app.createAndShow();
         });
     }
@@ -45,12 +65,23 @@ public class FoodDeliveryLoginUI {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(420, 260));
 
-        JLabel title = new JLabel("Welcome to ordering with Food Delivery Service", SwingConstants.CENTER);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
-        main.add(title, BorderLayout.NORTH);
+    titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+    main.add(titleLabel, BorderLayout.NORTH);
 
-        buildCenter();
-        main.add(centerPanel, BorderLayout.CENTER);
+        // (toolbar removed) background and color are controlled programmatically in code only
+
+    buildCenter();
+
+    // wrap the centerPanel in a translucent white card so controls are readable
+    cardPanel.setOpaque(true);
+    cardPanel.setBackground(new Color(255,255,255,220));
+        cardPanel.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
+        cardPanel.removeAll();
+        cardPanel.add(centerPanel, new GridBagConstraints());
+        JPanel wrapper = new JPanel(new GridBagLayout());
+        wrapper.setOpaque(false);
+        wrapper.add(cardPanel);
+        main.add(wrapper, BorderLayout.CENTER);
 
         messageLabel.setForeground(Color.RED);
         main.add(messageLabel, BorderLayout.SOUTH);
@@ -59,6 +90,88 @@ public class FoodDeliveryLoginUI {
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+    }
+
+    private void onUploadBackground() {
+        // kept for backward compatibility but not used in UI (toolbar removed)
+        JFileChooser chooser = new JFileChooser();
+        int res = chooser.showOpenDialog(frame);
+        if (res != JFileChooser.APPROVE_OPTION) return;
+        File f = chooser.getSelectedFile();
+        try {
+            Image img = javax.imageio.ImageIO.read(f);
+            if (img != null) {
+                main.setBackgroundImage(img);
+                main.setOverlayAlpha(0f);
+                main.repaint();
+            } else {
+                JOptionPane.showMessageDialog(frame, "Selected file is not a supported image.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(frame, "Failed to load image: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Set the background image programmatically from an absolute path or relative path.
+     * This will disable the dim overlay so the image shows fully.
+     */
+    /** Set image and by default make it cover the UI (card becomes transparent). */
+    public void setBackgroundImage(Path imagePath) throws IOException {
+        setBackgroundImage(imagePath, true);
+    }
+
+    /**
+     * Set the background image programmatically.
+     * @param imagePath path to image
+     * @param coverUI if true, make the card/title/messages transparent so image covers UI fully
+     */
+    public void setBackgroundImage(Path imagePath, boolean coverUI) throws IOException {
+        Image img = javax.imageio.ImageIO.read(imagePath.toFile());
+        if (img != null) {
+            main.setBackgroundImage(img);
+            main.setOverlayAlpha(0f);
+            // if coverUI, make card and title non-opaque so image shows through everywhere
+            if (coverUI) {
+                cardPanel.setOpaque(false);
+                cardPanel.setBackground(new Color(0,0,0,0));
+                titleLabel.setOpaque(false);
+                messageLabel.setOpaque(false);
+            } else {
+                // restore translucent card
+                cardPanel.setOpaque(true);
+                cardPanel.setBackground(new Color(255,255,255,220));
+                titleLabel.setOpaque(true);
+                titleLabel.setBackground(main.getBackground());
+                messageLabel.setOpaque(true);
+                messageLabel.setBackground(main.getBackground());
+            }
+            main.repaint();
+        } else {
+            throw new IOException("Unsupported image or failed to read: " + imagePath);
+        }
+    }
+
+    /**
+     * Set a solid background color programmatically. This clears any background image.
+     */
+    public void setBackgroundColor(Color c) {
+        main.setBackgroundColor(c);
+        main.setOverlayAlpha(0f);
+        main.repaint();
+    }
+
+    /**
+     * Control card opacity programmatically. alpha 0..255.
+     */
+    public void setCardOpacity(int alpha) {
+        alpha = Math.max(0, Math.min(255, alpha));
+        cardPanel.setOpaque(alpha > 0);
+        cardPanel.setBackground(new Color(255,255,255, alpha));
+        // ensure title/message backgrounds track card if they are opaque
+        if (titleLabel.isOpaque()) titleLabel.setBackground(cardPanel.getBackground());
+        if (messageLabel.isOpaque()) messageLabel.setBackground(cardPanel.getBackground());
+        main.repaint();
     }
 
     private void buildCenter() {
@@ -98,11 +211,16 @@ public class FoodDeliveryLoginUI {
         }
 
         String hash = sha256Hex(pass);
-        String stored = users.get(user);
-        if (stored != null && stored.equals(hash)) {
+        boolean ok = false;
+        try {
+            if (userDb != null) ok = userDb.authenticate(user, hash);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        if (ok) {
             messageLabel.setForeground(new Color(0, 128, 0));
             messageLabel.setText("Login successful. Welcome, " + user + "!");
-            // Clear the fields
+            // Clear fields
             passField.setText("");
         } else {
             messageLabel.setText("Invalid username or password.");
@@ -132,16 +250,23 @@ public class FoodDeliveryLoginUI {
         }
 
         String hash = sha256Hex(pass);
-        users.put(user, hash);
         try {
-            appendUserToFile(user, hash);
-            JOptionPane.showMessageDialog(frame, "Registered successfully. You can now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException ex) {
+            if (userDb != null) {
+                if (userDb.userExists(user)) {
+                    JOptionPane.showMessageDialog(frame, "Username already exists.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                userDb.register(user, hash);
+                JOptionPane.showMessageDialog(frame, "Registered successfully. You can now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(frame, "User database not available.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
             JOptionPane.showMessageDialog(frame, "Failed to save user: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    // --- users ---
+    // --- user persistence ---
 
     private void loadUsers() {
         users.clear();
@@ -156,7 +281,7 @@ public class FoodDeliveryLoginUI {
             System.err.println("Failed to read user db: " + ex.getMessage());
         }
     }
-    // Change this to a database, not a user.css file
+
     private void appendUserToFile(String user, String hash) throws IOException {
         if (!Files.exists(USER_DB)) {
             Files.createFile(USER_DB);
@@ -165,7 +290,7 @@ public class FoodDeliveryLoginUI {
         Files.writeString(USER_DB, line, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
     }
 
-    // --- Save User & Pass/ ---
+    // --- utilities ---
 
     private static String sha256Hex(String input) {
         try {
@@ -177,5 +302,92 @@ public class FoodDeliveryLoginUI {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
+    }
+}
+
+// small panel that supports a solid background color or a scaled image
+class BackgroundPanel extends JPanel {
+    private Color bgColor = Color.decode("#f7f9fc");
+    private Image bgImage = null;
+    private float overlayAlpha = 0.4f; // 0..1, higher = more dim
+
+    public BackgroundPanel() {
+        super(new BorderLayout(10, 10));
+        setOpaque(true);
+    }
+
+    public void setBackgroundColor(Color c) {
+        this.bgColor = c;
+        this.bgImage = null;
+        setOpaque(true);
+    }
+
+    public void setBackgroundImage(Image img) {
+        this.bgImage = img;
+        setOpaque(false);
+    }
+
+    public void setOverlayAlpha(float a) {
+        this.overlayAlpha = Math.max(0f, Math.min(1f, a));
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        if (bgImage != null) {
+            // draw image scaled to fill (preserve aspect ratio)
+            int w = getWidth();
+            int h = getHeight();
+            double imgW = bgImage.getWidth(null);
+            double imgH = bgImage.getHeight(null);
+            if (imgW > 0 && imgH > 0) {
+                double scale = Math.max((double) w / imgW, (double) h / imgH);
+                int iw = (int) (imgW * scale);
+                int ih = (int) (imgH * scale);
+                int x = (w - iw) / 2;
+                int y = (h - ih) / 2;
+                g.drawImage(bgImage, x, y, iw, ih, this);
+                // draw dark overlay to improve readability
+                if (overlayAlpha > 0f) {
+                    Color old = g.getColor();
+                    g.setColor(new Color(0, 0, 0, Math.round(overlayAlpha * 255)));
+                    g.fillRect(0, 0, w, h);
+                    g.setColor(old);
+                }
+            } else {
+                super.paintComponent(g);
+            }
+        } else {
+            g.setColor(bgColor != null ? bgColor : getBackground());
+            g.fillRect(0, 0, getWidth(), getHeight());
+        }
+    }
+}
+
+/**
+ * JLabel with a subtle drop shadow to improve readability over images.
+ */
+class ShadowLabel extends JLabel {
+    private Color shadowColor = new Color(0,0,0,160);
+    private int offset = 2;
+
+    public ShadowLabel(String text) {
+        super(text, SwingConstants.CENTER);
+        setForeground(Color.WHITE);
+        setFont(getFont().deriveFont(Font.BOLD, 16f));
+        setOpaque(false);
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        // draw shadow
+        g2.setColor(shadowColor);
+        g2.translate(offset, offset);
+        super.paintComponent(g2);
+        g2.dispose();
+
+        // draw text normally
+        super.paintComponent(g);
     }
 }
