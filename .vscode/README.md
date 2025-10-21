@@ -27,6 +27,14 @@ This is a Java-based Food Delivery Application, Where users order food
 If you have the `FoodDeliveryApp.jar`:
 
 ```bash
+ Do this in the terminal of whatever IDE you are using: Eclipse/visual studio etc..
+ 
+After editing and adding code complie first by makign them .class
+javac -cp "lib/sqlite-jdbc-3.42.0.0.jar" *.java
 
+Rebuild jar file
+jar cfm FoodDeliveryApp.jar MANIFEST.MF *.class
 
-java -cp "FoodDeliveryApp.jar:lib/sqlite-jdbc-3.42.0.0.jar" FoodDeliveryLoginUI
+then run new jar file
+java -jar FoodDeliveryApp.jar
+
