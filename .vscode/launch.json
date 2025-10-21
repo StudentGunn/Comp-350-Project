@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run FoodDeliveryLoginUI with SQLite",
+      "request": "launch",
+      "mainClass": "FoodDeliveryLoginUI",
+      "classPaths": [
+        "bin",
+        "lib/sqlite-jdbc-3.42.0.0.jar"
+      ]
+    }
+  ]
+}
