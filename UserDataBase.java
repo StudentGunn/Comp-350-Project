@@ -8,7 +8,7 @@ import java.sql.Statement;
 import java.time.Instant;
 
 /**
- * SQLite-backed user database helper that matches the filename `UserDataBase.java`.
+ * SQLite-backed user database helper
  */
 public class UserDataBase {
     private final Path dbPath;
