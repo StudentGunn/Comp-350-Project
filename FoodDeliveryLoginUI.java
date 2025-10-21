@@ -1,15 +1,11 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.io.*;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
 import javax.swing.*;
 
 /*
@@ -21,7 +17,6 @@ import javax.swing.*;
  */
 public class FoodDeliveryLoginUI {
 
-    private static final Path USER_DB = Path.of("users.csv");
 
     private final JFrame frame = new JFrame("Food Delivery Service");
     // use a custom panel that can draw a color or an image as background
@@ -37,18 +32,18 @@ public class FoodDeliveryLoginUI {
     // a card panel so form controls are readable over image backgrounds
     private final JPanel cardPanel = new JPanel(new GridBagLayout());
 
-    private final Map<String, String> users = new HashMap<>(); // kept for compatibility but not used for persistence
-    private UserDatabase userDb;
+    private UserDataBase userDb;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             FoodDeliveryLoginUI app = new FoodDeliveryLoginUI();
             // initialize SQLite DB
             try {
-                app.userDb = new UserDatabase(java.nio.file.Path.of("users.db"));
+                app.userDb = new UserDataBase(java.nio.file.Path.of("users.db"));
                 app.userDb.init();
             } catch (Exception ex) {
                 ex.printStackTrace();
+                // Surface initialization error in the UI so user sees that DB is required
                 JOptionPane.showMessageDialog(null, "Failed to initialize user database: " + ex.getMessage(), "DB error", JOptionPane.ERROR_MESSAGE);
             }
             try {
@@ -60,6 +55,13 @@ public class FoodDeliveryLoginUI {
             app.createAndShow();
         });
     }
+
+    // main() summary:
+    // - runs on the Event Dispatch Thread using SwingUtilities.invokeLater
+    // - constructs FoodDeliveryLoginUI, attempts to initialize the SQLite-backed
+    //   UserDatabase (creating users.db if missing) and loads a background image
+    // - any initialization failures are shown to the user via dialogs so they
+    //   understand DB or image problems early
 
     private void createAndShow() {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -92,25 +94,13 @@ public class FoodDeliveryLoginUI {
         frame.setVisible(true);
     }
 
-    private void onUploadBackground() {
-        // kept for backward compatibility but not used in UI (toolbar removed)
-        JFileChooser chooser = new JFileChooser();
-        int res = chooser.showOpenDialog(frame);
-        if (res != JFileChooser.APPROVE_OPTION) return;
-        File f = chooser.getSelectedFile();
-        try {
-            Image img = javax.imageio.ImageIO.read(f);
-            if (img != null) {
-                main.setBackgroundImage(img);
-                main.setOverlayAlpha(0f);
-                main.repaint();
-            } else {
-                JOptionPane.showMessageDialog(frame, "Selected file is not a supported image.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(frame, "Failed to load image: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
+    // createAndShow() summary:
+    // - builds the main window and layout, including title, form fields, and
+    //   buttons. The UI uses a translucent card (cardPanel) so controls are
+    //   readable over the background. This method finishes by packing and
+    //   showing the JFrame on screen.
+
+    // Upload background removed; background controlled programmatically.
 
     /**
      * Set the background image programmatically from an absolute path or relative path.
@@ -152,9 +142,20 @@ public class FoodDeliveryLoginUI {
         }
     }
 
+    // setBackgroundImage(imagePath, coverUI) summary:
+    // - reads an image from disk using ImageIO.read (throws IOException if read fails)
+    // - sets the image into BackgroundPanel and turns off overlay dimming
+    // - if coverUI==true, the UI card and labels are made non-opaque so the
+    //   image shows through; otherwise the translucent card is restored
+
     /**
      * Set a solid background color programmatically. This clears any background image.
      */
+    // setBackgroundColor(Color c):
+    // - c is a java.awt.Color instance and is used to paint the panel background
+    // - clears any previously set background image by setting bgImage=null and
+    //   switching the panel to opaque so the solid color is visible
+    // - calls repaint to update the UI immediately
     public void setBackgroundColor(Color c) {
         main.setBackgroundColor(c);
         main.setOverlayAlpha(0f);
@@ -164,6 +165,12 @@ public class FoodDeliveryLoginUI {
     /**
      * Control card opacity programmatically. alpha 0..255.
      */
+    // setCardOpacity(int alpha):
+    // - alpha is an integer 0..255 representing the translucency of the card
+    // - alpha > 0 makes the card opaque; cardPanel background color uses the
+    //   same RGBA color with the provided alpha value
+    // - titleLabel and messageLabel backgrounds are updated to match the card
+    //   when they are opaque so visuals remain consistent
     public void setCardOpacity(int alpha) {
         alpha = Math.max(0, Math.min(255, alpha));
         cardPanel.setOpaque(alpha > 0);
@@ -175,6 +182,15 @@ public class FoodDeliveryLoginUI {
     }
 
     private void buildCenter() {
+        // buildCenter():
+        // - creates the username and password label+field pairs and positions
+        //   them using GridBagLayout constraints
+        // - creates Login and Register buttons and attaches action listeners
+        //   (loginBtn -> onLogin, registerBtn -> onRegister)
+        // - the buttons panel is added to the center area so user can submit
+        //   the form; all components are standard Swing components (JLabel,
+        //   JTextField, JPasswordField, JButton) and listeners receive
+        //   ActionEvent when triggered.
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(6, 6, 6, 6);
 
@@ -206,37 +222,64 @@ public class FoodDeliveryLoginUI {
         String pass = new String(passField.getPassword()).trim();
 
         if (user.isEmpty() || pass.isEmpty()) {
+            messageLabel.setForeground(Color.RED);
             messageLabel.setText("Please enter username and password.");
             return;
         }
 
+    // Hash the password input to a hex string. sha256Hex returns a String.
+    // Steps:
+    // 1) read password char[] from passField and convert to String
+    // 2) call sha256Hex(pass) to produce a hex String
+    // 3) pass the username (String) and password hash (String) to
+    //    userDb.authenticate(user, hash) which compares the stored value
+    // Note: both username and hash are passed as JDBC Strings to PreparedStatement.setString
         String hash = sha256Hex(pass);
-        boolean ok = false;
         try {
-            if (userDb != null) ok = userDb.authenticate(user, hash);
+            if (userDb == null) {
+                messageLabel.setForeground(Color.RED);
+                messageLabel.setText("User database not initialized.");
+                return;
+            }
+            // Ask the database to verify the provided password hash
+            // matches the stored value for this username.
+            boolean ok = userDb.authenticate(user, hash);
+            if (ok) {
+                messageLabel.setForeground(new Color(0, 128, 0));
+                messageLabel.setText("Login successful. Welcome, " + user + "!");
+                passField.setText("");
+            } else {
+                messageLabel.setForeground(Color.RED);
+                messageLabel.setText("Invalid username or password.");
+            }
         } catch (Exception ex) {
             ex.printStackTrace();
-        }
-        if (ok) {
-            messageLabel.setForeground(new Color(0, 128, 0));
-            messageLabel.setText("Login successful. Welcome, " + user + "!");
-            // Clear fields
-            passField.setText("");
-        } else {
-            messageLabel.setText("Invalid username or password.");
+            messageLabel.setForeground(Color.RED);
+            messageLabel.setText("DB error: " + ex.getMessage());
         }
     }
 
+    // onLogin(ActionEvent):
+    // - validates non-empty inputs
+    // - computes SHA-256 hex of password
+    // - calls userDb.authenticate(username, hash) to check credentials
+    // - updates messageLabel with success or failure messages
+
     private void onRegister(ActionEvent e) {
+    // Registration flow (step-level):
+    // 1) Prompt for username (String) via JOptionPane and trim whitespace
+    // 2) Prompt for password in a JPasswordField (char[]), convert to String
+    // 3) Compute password hash (sha256Hex) producing a String hex
+    // 4) Call userDb.userExists(user) which uses p.setString(1, user)
+    //    to bind the username as a JDBC String for the SELECT
+    // 5) If not exists, call userDb.register(user, hash): this uses
+    //    p.setString for username/hash and p.setLong for created_at
         String user = JOptionPane.showInputDialog(frame, "Choose a username:", "Register", JOptionPane.QUESTION_MESSAGE);
         if (user == null) return; // cancelled
         user = user.trim();
         if (user.isEmpty()) {
-            JOptionPane.showMessageDialog(frame, "Username cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        if (users.containsKey(user)) {
-            JOptionPane.showMessageDialog(frame, "Username already exists.", "Error", JOptionPane.ERROR_MESSAGE);
+            messageLabel.setForeground(Color.RED);
+            messageLabel.setText("Username cannot be empty.");
             return;
         }
 
@@ -251,48 +294,40 @@ public class FoodDeliveryLoginUI {
 
         String hash = sha256Hex(pass);
         try {
-            if (userDb != null) {
-                if (userDb.userExists(user)) {
-                    JOptionPane.showMessageDialog(frame, "Username already exists.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-                userDb.register(user, hash);
-                JOptionPane.showMessageDialog(frame, "Registered successfully. You can now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
-            } else {
-                JOptionPane.showMessageDialog(frame, "User database not available.", "Error", JOptionPane.ERROR_MESSAGE);
+            if (userDb == null) {
+                messageLabel.setForeground(Color.RED);
+                messageLabel.setText("User database not initialized.");
+                return;
             }
+            // Check DB to ensure the username isn't already taken.
+            if (userDb.userExists(user)) {
+                messageLabel.setForeground(Color.RED);
+                messageLabel.setText("Username already exists.");
+                return;
+            }
+            // Insert the new user record into the SQLite database.
+            userDb.register(user, hash);
+            messageLabel.setForeground(new Color(0, 128, 0));
+            messageLabel.setText("Registered successfully. You can now login.");
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(frame, "Failed to save user: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+            messageLabel.setForeground(Color.RED);
+            messageLabel.setText("Failed to save user: " + ex.getMessage());
         }
     }
 
-    // --- user persistence ---
-
-    private void loadUsers() {
-        users.clear();
-        if (!Files.exists(USER_DB)) return;
-        try (BufferedReader r = Files.newBufferedReader(USER_DB, StandardCharsets.UTF_8)) {
-            String line;
-            while ((line = r.readLine()) != null) {
-                String[] parts = line.split(",", 2);
-                if (parts.length == 2) users.put(parts[0], parts[1]);
-            }
-        } catch (IOException ex) {
-            System.err.println("Failed to read user db: " + ex.getMessage());
-        }
-    }
-
-    private void appendUserToFile(String user, String hash) throws IOException {
-        if (!Files.exists(USER_DB)) {
-            Files.createFile(USER_DB);
-        }
-        String line = user + "," + hash + System.lineSeparator();
-        Files.writeString(USER_DB, line, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
-    }
+    // No CSV fallback: persistence is provided by the SQLite-backed UserDatabase only.
 
     // --- utilities ---
 
     private static String sha256Hex(String input) {
+        // sha256Hex(String input):
+        // - input is the plaintext password string (UTF-8). This method:
+        //   1) obtains a MessageDigest for SHA-256
+        //   2) converts the input to bytes using StandardCharsets.UTF_8
+        //   3) computes the digest (32 bytes) and converts each byte to
+        //      a two-character lowercase hex representation
+        // - returns the hex String representation of the hash
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] b = md.digest(input.getBytes(StandardCharsets.UTF_8));
@@ -300,6 +335,7 @@ public class FoodDeliveryLoginUI {
             for (byte x : b) sb.append(String.format("%02x", x & 0xff));
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
+            // SHA-256 is expected to be present; convert to unchecked if not
             throw new RuntimeException(e);
         }
     }
