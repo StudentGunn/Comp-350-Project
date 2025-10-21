@@ -3,4 +3,11 @@ public class User {
     int ID;
     int phoneNumber;
     String Address;
+
+    void getInfo(){
+        return;
+    }
+
+
 }
+
