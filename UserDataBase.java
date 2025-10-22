@@ -7,9 +7,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
 
-/**
- * SQLite-backed user database helper that matches the filename `UserDataBase.java`.
- */
 public class UserDataBase {
     private final Path dbPath;
     private final String url;
@@ -19,7 +16,7 @@ public class UserDataBase {
         this.url = "jdbc:sqlite:" + dbPath.toAbsolutePath().toString();
     }
 
-    /** Create the users table if it doesn't exist. 
+    /* Create the users table if it doesn't exist. 
      * creates method init
      * trys to connect to the database
      * creates the users table with the following columns: username, password_hash, full_name, email, created_at
@@ -46,7 +43,7 @@ public class UserDataBase {
         }
     }
 
-    /** Insert a new user. Returns true on success. 
+    /* Insert a new user. Returns true on success. 
      * creates method register
      * trys to connect to the database
      * prepares an SQL statement to insert a new user into the users table
@@ -65,7 +62,7 @@ public class UserDataBase {
         }
     }
 
-    /** Return true when passwordHash matches stored value. 
+    /**Return true when passwordHash matches stored value. 
      * creates method authenticate
      * trys to connect to the database
      * prepares an SQL statement to select the password_hash from the users table where the username matches
@@ -87,7 +84,7 @@ public class UserDataBase {
         }
     }
 
-    /** Return true if the username exists. 
+    /* Return true if the username exists. 
      * creates method userExists
      * trys to connect to the database
      * prepares an SQL statement to select from the users table where the username matches

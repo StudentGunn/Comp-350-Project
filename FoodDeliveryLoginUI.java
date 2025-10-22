@@ -102,19 +102,18 @@ public class FoodDeliveryLoginUI {
 
     // Upload background removed; background controlled programmatically.
 
-    /**
+    /*
      * Set the background image programmatically from an absolute path or relative path.
      * This will disable the dim overlay so the image shows fully.
-     */
-    /** Set image and by default make it cover the UI (card becomes transparent). */
+    /*Set image and by default make it cover the UI (card becomes transparent). */
     public void setBackgroundImage(Path imagePath) throws IOException {
         setBackgroundImage(imagePath, true);
     }
 
-    /**
+    /*
      * Set the background image programmatically.
      * @param imagePath path to image
-     * @param coverUI if true, make the card/title/messages transparent so image covers UI fully
+     * @param coverUI if true, make the card/title/messages transparent 
      */
     public void setBackgroundImage(Path imagePath, boolean coverUI) throws IOException {
         Image img = javax.imageio.ImageIO.read(imagePath.toFile());
@@ -162,13 +161,10 @@ public class FoodDeliveryLoginUI {
         main.repaint();
     }
 
-    /**
-     * Control card opacity programmatically. alpha 0..255.
-     */
-    // setCardOpacity(int alpha):
-    // - alpha is an integer 0..255 representing the translucency of the card
-    // - alpha > 0 makes the card opaque; cardPanel background color uses the
-    //   same RGBA color with the provided alpha value
+    /
+    // setCardOpacity
+    // - alpha is an integer 0..255 representing the translucency 
+    //   same RGBA color with the alpha value
     // - titleLabel and messageLabel backgrounds are updated to match the card
     //   when they are opaque so visuals remain consistent
     public void setCardOpacity(int alpha) {
@@ -182,11 +178,11 @@ public class FoodDeliveryLoginUI {
     }
 
     private void buildCenter() {
-        // buildCenter():
+
         // - creates the username and password label+field pairs and positions
         //   them using GridBagLayout constraints
         // - creates Login and Register buttons and attaches action listeners
-        //   (loginBtn -> onLogin, registerBtn -> onRegister)
+        //   (loginBtn,onLogin,registerBtn ,onRegister
         // - the buttons panel is added to the center area so user can submit
         //   the form; all components are standard Swing components (JLabel,
         //   JTextField, JPasswordField, JButton) and listeners receive
@@ -267,12 +263,12 @@ public class FoodDeliveryLoginUI {
 
     private void onRegister(ActionEvent e) {
     // Registration flow (step-level):
-    // 1) Prompt for username (String) via JOptionPane and trim whitespace
+    // 1) Prompt for username uses (String) via JOptionPane
     // 2) Prompt for password in a JPasswordField (char[]), convert to String
     // 3) Compute password hash (sha256Hex) producing a String hex
-    // 4) Call userDb.userExists(user) which uses p.setString(1, user)
+    // 4) Call userDb.userExists which uses p.setString
     //    to bind the username as a JDBC String for the SELECT
-    // 5) If not exists, call userDb.register(user, hash): this uses
+    // 5) If not exists, call userDb.register this uses
     //    p.setString for username/hash and p.setLong for created_at
         String user = JOptionPane.showInputDialog(frame, "Choose a username:", "Register", JOptionPane.QUESTION_MESSAGE);
         if (user == null) return; // cancelled
@@ -316,7 +312,7 @@ public class FoodDeliveryLoginUI {
         }
     }
 
-    // No CSV fallback: persistence is provided by the SQLite-backed UserDatabase only.
+    //  Removed.CSV fall back, not allowed only provided by the SQLite-backed UserDatabase
 
     // --- utilities ---
 
