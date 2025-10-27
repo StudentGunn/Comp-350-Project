@@ -62,7 +62,7 @@ public class UserDataBase {
         }
     }
 
-    /**Return true when passwordHash matches stored value. 
+    /*Return true when passwordHash matches stored value. 
      * creates method authenticate
      * trys to connect to the database
      * prepares an SQL statement to select the password_hash from the users table where the username matches

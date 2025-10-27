@@ -161,7 +161,7 @@ public class FoodDeliveryLoginUI {
         main.repaint();
     }
 
-    /
+    
     // setCardOpacity
     // - alpha is an integer 0..255 representing the translucency 
     //   same RGBA color with the alpha value
