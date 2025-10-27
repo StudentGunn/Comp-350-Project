@@ -16,7 +16,7 @@ public class Main {
                 // Surface initialization error in the UI so user sees that DB is required
                 JOptionPane.showMessageDialog(null, "Failed to initialize user database: " + ex.getMessage(), "DB error", JOptionPane.ERROR_MESSAGE);
             }
-            try {
+            try {// choose any picture you want, copy the path and then paste it below
                 app.setBackgroundImage(java.nio.file.Paths.get("C:\\Users\\skylg\\OneDrive\\Desktop\\Food Deilvery app.jpg"), true);
             } catch (IOException ex) {
                 ex.printStackTrace();
