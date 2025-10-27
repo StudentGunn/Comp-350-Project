@@ -3,13 +3,19 @@
   "configurations": [
     {
       "type": "java",
+      "name": "Main",
+      "request": "launch",
+      "mainClass": "Main",
+      "projectName": "Comp-350-Project_e73741f8"
+    },
+    {
+      "type": "java",
       "name": "Run FoodDelivery App",
       "request": "launch",
       "mainClass": "Main",
-      "projectName": "Comp-350-Project",
+      "projectName": "Project",
       "classPaths": [
-        "out",
-        "lib/sqlite-jdbc-3.42.0.0.jar"
+        "Project/sqlite-jdbc-3.42.0.0.jar"
       ]
     }
   ]

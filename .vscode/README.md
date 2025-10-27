@@ -1,40 +1,54 @@
-# Food Delivery App
+# Food Delivery App (Comp-350-Project)
 
-This is a Java-based Food Delivery Application, Where users order food
+A simple Java Swing-based Food Delivery Login application with SQLite database support.
 
 ---
 
 ## Project Structure
-
-- `Project/` — Contains your compiled `.class` files (optional, source preferred)
-- `lib/` — Contains external libraries (e.g., `sqlite-jdbc-3.42.0.0.jar`)
-- `src/` — Contains the Java source files (your `.java` files)
-- `users.db` — SQLite database file
+comp-350-project/
+├─ .vscode/ # VS Code configuration files
+│ └─ launch.json # Run configuration
+├─ Project/ # Main project folder
+│ ├─ Main.java # Entry point of the application
+│ ├─ FoodDeliveryLoginUI.java # UI class
+│ ├─ UserDataBase.java # SQLite database helper
+│ ├─ sqlite-jdbc-3.42.0.0.jar # SQLite JDBC driver
+│ └─ users.db # SQLite database (created automatically)
+├─ .gitignore # Git ignore rules
+└─ MANIFEST.MF # Optional manifest file
 
 ---
 
 ## Prerequisites
 
-- Java Development Kit (JDK) installed (Java 8 or later)
-- SQLite JDBC driver located in `lib/sqlite-jdbc-3.42.0.0.jar`
+- Java JDK 17 or later installed
+- [Visual Studio Code](https://code.visualstudio.com/) with **Java Extension Pack**
+- SQLite JDBC driver included (`sqlite-jdbc-3.42.0.0.jar` is already in `Project/`)
 
 ---
 
-## How to Build and Run
+## How to Run in VS Code
 
-### Using precompiled JAR
+1. **Open the project folder** in VS Code:
 
-If you have the `FoodDeliveryApp.jar`:
 
-```bash
- Do this in the terminal of whatever IDE you are using: Eclipse/visual studio etc..
- 
-After editing and adding code complie first by makign them .class
-javac -cp "lib/sqlite-jdbc-3.42.0.0.jar" *.java
+2. **Ensure launch configuration is set** in `.vscode/launch.json`:
 
-Rebuild jar file
-jar cfm FoodDeliveryApp.jar MANIFEST.MF *.class
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run FoodDelivery App",
+      "request": "launch",
+      "mainClass": "Main",
+      "projectName": "Project",
+      "classPaths": [
+        "Project/sqlite-jdbc-3.42.0.0.jar"
+      ]
+    }
+  ]
+}
 
-then run new jar file
-java -jar FoodDeliveryApp.jar
-
+You should be able to run the code with no errors after!
