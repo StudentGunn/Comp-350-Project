@@ -3,11 +3,12 @@
   "configurations": [
     {
       "type": "java",
-      "name": "Run FoodDeliveryLoginUI with SQLite",
+      "name": "Run FoodDelivery App",
       "request": "launch",
-      "mainClass": "FoodDeliveryLoginUI",
+      "mainClass": "Main",
+      "projectName": "Comp-350-Project",
       "classPaths": [
-        "bin",
+        "out",
         "lib/sqlite-jdbc-3.42.0.0.jar"
       ]
     }

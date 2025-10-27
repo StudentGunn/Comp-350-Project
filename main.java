@@ -1,7 +1,7 @@
-import javax.swing.*;
 import java.io.IOException;
+import javax.swing.*;
 
-public class main {
+public class Main {
 
 
     public static void main(String[] args) {
