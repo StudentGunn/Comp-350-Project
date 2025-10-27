@@ -16,12 +16,10 @@ import javax.swing.*;
  * - Passwords are stored as SHA-256 hex hashes replace with a proper KDF for production
  */
 public class FoodDeliveryLoginUI {
-
-
     private final JFrame frame = new JFrame("Food Delivery Service");
     // use a custom panel that can draw a color or an image as background
     private final BackgroundPanel main = new BackgroundPanel();
-
+    private final SceneSorter sceneSorter = new SceneSorter();
     private final JTextField userField = new JTextField(15);
     private final JPasswordField passField = new JPasswordField(15);
     private final JLabel messageLabel = new JLabel(" ", SwingConstants.CENTER);
@@ -31,61 +29,16 @@ public class FoodDeliveryLoginUI {
     private final JPanel centerPanel = new JPanel(new GridBagLayout());
     // a card panel so form controls are readable over image backgrounds
     private final JPanel cardPanel = new JPanel(new GridBagLayout());
-
-    private UserDataBase userDb;
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            FoodDeliveryLoginUI app = new FoodDeliveryLoginUI();
-            // initialize SQLite DB
-            try {
-                app.userDb = new UserDataBase(java.nio.file.Path.of("users.db"));
-                app.userDb.init();
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                // Surface initialization error in the UI so user sees that DB is required
-                JOptionPane.showMessageDialog(null, "Failed to initialize user database: " + ex.getMessage(), "DB error", JOptionPane.ERROR_MESSAGE);
-            }
-            try {
-                app.setBackgroundImage(java.nio.file.Paths.get("C:\\Users\\skylg\\OneDrive\\Desktop\\Food Deilvery app.jpg"), true);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Failed to load background image: " + ex.getMessage(), "Image load error", JOptionPane.ERROR_MESSAGE);
-            }
-            app.createAndShow();
-        });
-    }
-
-    // main() summary:
-    // - runs on the Event Dispatch Thread using SwingUtilities.invokeLater
-    // - constructs FoodDeliveryLoginUI, attempts to initialize the SQLite-backed
-    //   UserDatabase (creating users.db if missing) and loads a background image
-    // - any initialization failures are shown to the user via dialogs so they
-    //   understand DB or image problems early
-
-    private void createAndShow() {
+    public UserDataBase userDb;
+    public void createAndShow() {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(420, 260));
+        // Adds Login to the sceneSorter. Likely movable, especially when more Scenes are created.
+        sceneSorter.addScene("Login", buildLoginPanel());
 
-    titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
-    main.add(titleLabel, BorderLayout.NORTH);
-
-        // (toolbar removed) background and color are controlled programmatically in code only
-
-    buildCenter();
-
-    // wrap the centerPanel in a translucent white card so controls are readable
-    cardPanel.setOpaque(true);
-    cardPanel.setBackground(new Color(255,255,255,220));
-        cardPanel.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
-        cardPanel.removeAll();
-        cardPanel.add(centerPanel, new GridBagConstraints());
-        JPanel wrapper = new JPanel(new GridBagLayout());
-        wrapper.setOpaque(false);
-        wrapper.add(cardPanel);
-        main.add(wrapper, BorderLayout.CENTER);
-
-        messageLabel.setForeground(Color.RED);
+        main.add(new ShadowLabel("Welcome to ordering with Food Delivery Service!"), BorderLayout.NORTH);
+        main.add(sceneSorter.getCardsPanel(), BorderLayout.CENTER);
+        sceneSorter.switchPage("Login");
         main.add(messageLabel, BorderLayout.SOUTH);
 
         frame.setContentPane(main);
@@ -93,14 +46,170 @@ public class FoodDeliveryLoginUI {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
+    //   builds the main window and layout, including title, form fields, and
+    //   buttons. CardLayout is also called here, allowing us to easily switch
+    //   between UI layouts in the future. Switchpage is used to ensure the first
+    //   page will always be login.
 
-    // createAndShow() summary:
-    // - builds the main window and layout, including title, form fields, and
-    //   buttons. The UI uses a translucent card (cardPanel) so controls are
-    //   readable over the background. This method finishes by packing and
-    //   showing the JFrame on screen.
+    public JPanel buildLoginPanel() {
+        JPanel centerPanel = new JPanel(new GridBagLayout());
+        JTextField userField = new JTextField(15);
+        JPasswordField passField = new JPasswordField(15);
+
+        // - creates the username and password label+field pairs and positions
+        //   them using GridBagLayout constraints
+        // - creates Login and Register buttons and attaches action listeners
+        //   (loginBtn -> onLogin, registerBtn -> onRegister)
+        // - the buttons panel is added to the center area so user can submit
+        //   the form; all components are standard Swing components (JLabel,
+        //   JTextField, JPasswordField, JButton) and listeners receive
+        //   ActionEvent when triggered.
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(6, 6, 6, 6);
+
+        c.gridx = 0; c.gridy = 0; c.anchor = GridBagConstraints.EAST;
+        centerPanel.add(new JLabel("Username:"), c);
+        c.gridx = 1; c.anchor = GridBagConstraints.WEST;
+        centerPanel.add(userField, c);
+
+        c.gridx = 0; c.gridy = 1; c.anchor = GridBagConstraints.EAST;
+        centerPanel.add(new JLabel("Password:"), c);
+        c.gridx = 1; c.anchor = GridBagConstraints.WEST;
+        centerPanel.add(passField, c);
+
+        JPanel btns = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        JButton loginBtn = new JButton("Login");
+        loginBtn.addActionListener(this::onLogin);
+        JButton registerBtn = new JButton("Register");
+        registerBtn.addActionListener(this::onRegister);
+        btns.add(loginBtn);
+        btns.add(registerBtn);
+
+        c.gridx = 0; c.gridy = 2; c.gridwidth = 2; c.anchor = GridBagConstraints.CENTER;
+        centerPanel.add(btns, c);
+
+        // wrap the centerPanel in a translucent white card so controls are readable
+        JPanel cardWrapper = new JPanel(new GridBagLayout());
+        cardWrapper.setOpaque(false);
+        JPanel translucentCard = new JPanel(new GridBagLayout());
+        translucentCard.setOpaque(true);
+        translucentCard.setBackground(new Color(255,255,255,220));
+        translucentCard.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
+        translucentCard.add(centerPanel);
+        cardWrapper.add(translucentCard);
+
+        return cardWrapper;
+    }
+    // buildLoginPage Summary:
+
+    // This is used by sceneSorter as the logic for the
+    // "Login" UI. When switchPage is used to call "Login",
+    // this logic will be used.
 
     // Upload background removed; background controlled programmatically.
+    private void onLogin(ActionEvent e) {
+        messageLabel.setForeground(Color.RED);
+        String user = userField.getText().trim();
+        String pass = new String(passField.getPassword()).trim();
+
+        if (user.isEmpty() || pass.isEmpty()) {
+            messageLabel.setForeground(Color.RED);
+            messageLabel.setText("Please enter username and password.");
+            return;
+        }
+        // Hash the password input to a hex string. sha256Hex returns a String.
+        // Steps:
+        // 1) read password char[] from passField and convert to String
+        // 2) call sha256Hex(pass) to produce a hex String
+        // 3) pass the username (String) and password hash (String) to
+        //    userDb.authenticate(user, hash) which compares the stored value
+        // Note: both username and hash are passed as JDBC Strings to PreparedStatement.setString
+        String hash = sha256Hex(pass);
+        try {
+            if (userDb == null) {
+                messageLabel.setForeground(Color.RED);
+                messageLabel.setText("User database not initialized.");
+                return;
+            }
+            // Ask the database to verify the provided password hash
+            // matches the stored value for this username.
+            boolean ok = userDb.authenticate(user, hash);
+            if (ok) {
+                messageLabel.setForeground(new Color(0, 128, 0));
+                messageLabel.setText("Login successful. Welcome, " + user + "!");
+                passField.setText("");
+            } else {
+                messageLabel.setForeground(Color.RED);
+                messageLabel.setText("Invalid username or password.");
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            messageLabel.setForeground(Color.RED);
+            messageLabel.setText("DB error: " + ex.getMessage());
+        }
+    }
+
+    // onLogin(ActionEvent):
+    // - validates non-empty inputs
+    // - computes SHA-256 hex of password
+    // - calls userDb.authenticate(username, hash) to check credentials
+    // - updates messageLabel with success or failure messages
+    private void onRegister(ActionEvent e) {
+        // Registration flow (step-level):
+        // 1) Prompt for username (String) via JOptionPane and trim whitespace
+        // 2) Prompt for password in a JPasswordField (char[]), convert to String
+        // 3) Compute password hash (sha256Hex) producing a String hex
+        // 4) Call userDb.userExists(user) which uses p.setString(1, user)
+        //    to bind the username as a JDBC String for the SELECT
+        // 5) If not exists, call userDb.register(user, hash): this uses
+        //    p.setString for username/hash and p.setLong for created_at
+        String user = JOptionPane.showInputDialog(frame, "Choose a username:", "Register", JOptionPane.QUESTION_MESSAGE);
+        if (user == null) return;
+        user = user.trim();
+        if (user.isEmpty()) {
+            messageLabel.setForeground(Color.RED);
+            messageLabel.setText("Username cannot be empty.");
+            return;
+        }
+        JPasswordField pf = new JPasswordField();
+        int ok = JOptionPane.showConfirmDialog(frame, pf, "Enter password:", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (ok != JOptionPane.OK_OPTION) return;
+        String pass = new String(pf.getPassword()).trim();
+        if (pass.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "Password cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        String hash = sha256Hex(pass);
+        try {
+            if (userDb == null) {
+                messageLabel.setForeground(Color.RED);
+                messageLabel.setText("User database not initialized.");
+                return;
+            }
+            // Check DB to ensure the username isn't already taken.
+            if (userDb.userExists(user)) {
+                messageLabel.setForeground(Color.RED);
+                messageLabel.setText("Username already exists.");
+                return;
+            }
+            // Insert the new user record into the SQLite database.
+            userDb.register(user, hash);
+            messageLabel.setForeground(new Color(0, 128, 0));
+            messageLabel.setText("Registered successfully. You can now login.");
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            messageLabel.setForeground(Color.RED);
+            messageLabel.setText("Failed to save user: " + ex.getMessage());
+        }
+    }
+
+    // onRegister:
+
+    // The logic used when the user clicks the "Register" button on the "Login" page.
+
+    // No CSV fallback: persistence is provided by the SQLite-backed UserDatabase only.
+
+    // --- utilities ---
 
     /**
      * Set the background image programmatically from an absolute path or relative path.
@@ -180,7 +289,7 @@ public class FoodDeliveryLoginUI {
         if (messageLabel.isOpaque()) messageLabel.setBackground(cardPanel.getBackground());
         main.repaint();
     }
-
+    /*
     private void buildCenter() {
         // buildCenter():
         // - creates the username and password label+field pairs and positions
@@ -319,7 +428,7 @@ public class FoodDeliveryLoginUI {
     // No CSV fallback: persistence is provided by the SQLite-backed UserDatabase only.
 
     // --- utilities ---
-
+    */
     private static String sha256Hex(String input) {
         // sha256Hex(String input):
         // - input is the plaintext password string (UTF-8). This method:
@@ -399,9 +508,9 @@ class BackgroundPanel extends JPanel {
     }
 }
 
-/**
+/*
  * JLabel with a subtle drop shadow to improve readability over images.
- */
+*/
 class ShadowLabel extends JLabel {
     private Color shadowColor = new Color(0,0,0,160);
     private int offset = 2;
