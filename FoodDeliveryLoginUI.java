@@ -33,11 +33,12 @@ public class FoodDeliveryLoginUI {
     public void createAndShow() {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(420, 260));
-        // Adds Login to the sceneSorter.
+        // Adds Login to the sceneSorter. Likely movable, especially when more Scenes are created.
         sceneSorter.addScene("Login", buildLoginPanel());
 
         main.add(new ShadowLabel("Welcome to ordering with Food Delivery Service!"), BorderLayout.NORTH);
         main.add(sceneSorter.getCardsPanel(), BorderLayout.CENTER);
+        sceneSorter.switchPage("Login");
         main.add(messageLabel, BorderLayout.SOUTH);
 
         frame.setContentPane(main);
@@ -45,6 +46,11 @@ public class FoodDeliveryLoginUI {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
+    //   builds the main window and layout, including title, form fields, and
+    //   buttons. CardLayout is also called here, allowing us to easily switch
+    //   between UI layouts in the future. Switchpage is used to ensure the first
+    //   page will always be login.
+
     public JPanel buildLoginPanel() {
         JPanel centerPanel = new JPanel(new GridBagLayout());
         JTextField userField = new JTextField(15);
@@ -94,11 +100,11 @@ public class FoodDeliveryLoginUI {
 
         return cardWrapper;
     }
-    // createAndShow() summary:
-    // - builds the main window and layout, including title, form fields, and
-    //   buttons. The UI uses a translucent card (cardPanel) so controls are
-    //   readable over the background. This method finishes by packing and
-    //   showing the JFrame on screen.
+    // buildLoginPage Summary:
+
+    // This is used by sceneSorter as the logic for the
+    // "Login" UI. When switchPage is used to call "Login",
+    // this logic will be used.
 
     // Upload background removed; background controlled programmatically.
     private void onLogin(ActionEvent e) {
@@ -196,6 +202,10 @@ public class FoodDeliveryLoginUI {
             messageLabel.setText("Failed to save user: " + ex.getMessage());
         }
     }
+
+    // onRegister:
+
+    // The logic used when the user clicks the "Register" button on the "Login" page.
 
     // No CSV fallback: persistence is provided by the SQLite-backed UserDatabase only.
 
