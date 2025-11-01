@@ -8,8 +8,8 @@ A simple Java Swing-based Food Delivery Login application with SQLite database s
 comp-350-project/
 ├─ .vscode/ # VS Code configuration files
 │ └─ launch.json # Run configuration
-├─ Project/ # Main project folder
-│ ├─ Main.java # Entry point of the application
+├─ Project/ # MainApp project folder
+│ ├─ MainApp.java # Entry point of the application
 │ ├─ FoodDeliveryLoginUI.java # UI class
 │ ├─ UserDataBase.java # SQLite database helper
 │ ├─ sqlite-jdbc-3.42.0.0.jar # SQLite JDBC driver
@@ -42,7 +42,7 @@ comp-350-project/
       "type": "java",
       "name": "Run FoodDelivery App",
       "request": "launch",
-      "mainClass": "Main",
+      "mainClass": "MainApp",
       "projectName": "Project",
       "classPaths": [
         "Project/sqlite-jdbc-3.42.0.0.jar"

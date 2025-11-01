@@ -1,9 +1,8 @@
+import java.awt.*;
 import java.io.IOException;
 import javax.swing.*;
 
-public class Main {
-
-
+public class MainApp {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             FoodDeliveryLoginUI app = new FoodDeliveryLoginUI();
@@ -33,3 +32,4 @@ public class Main {
 //   UserDatabase (creating users.db if missing) and loads a background image
 // - any initialization failures are shown to the user via dialogs so they
 //   understand DB or image problems early
+
