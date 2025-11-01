@@ -1,11 +1,9 @@
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.SQLException;
 import javax.swing.*;
 
 /*
@@ -20,6 +18,10 @@ public class FoodDeliveryLoginUI {
     private final BackgroundPanel main = new BackgroundPanel();
     private final SceneSorter sceneSorter = new SceneSorter();
     public final JLabel messageLabel = new JLabel(" ", SwingConstants.CENTER);
+
+    public SceneSorter getSceneSorter() {
+        return sceneSorter;
+    }
     // expose title so we can toggle opacity when admin wants the image to cover whole UI
     private final ShadowLabel titleLabel = new ShadowLabel("Welcome to ordering with Food Delivery Service");
     private final JPanel centerPanel = new JPanel(new GridBagLayout());
@@ -27,12 +29,13 @@ public class FoodDeliveryLoginUI {
     private final JPanel cardPanel = new JPanel(new GridBagLayout());
     private final JFrame frame = new JFrame("Food Delivery Service");
     public UserDataBase userDb;
+
     public void createAndShow() {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(420, 260));
-        // Adds Login to the sceneSorter. Likely movable, especially when more Scenes are created.
-        LoginUI log = new LoginUI();
-        sceneSorter.addScene("Login", log.buildLoginPanel());
+    // Initialize Login UI with reference to this parent
+    LoginUI log = new LoginUI(this);
+    sceneSorter.addScene("Login", log.buildLoginPanel());
 
         main.add(new ShadowLabel("Welcome to ordering with Food Delivery Service!"), BorderLayout.NORTH);
         main.add(sceneSorter.getCardsPanel(), BorderLayout.CENTER);
@@ -130,6 +133,13 @@ public class FoodDeliveryLoginUI {
         if (titleLabel.isOpaque()) titleLabel.setBackground(cardPanel.getBackground());
         if (messageLabel.isOpaque()) messageLabel.setBackground(cardPanel.getBackground());
         main.repaint();
+    }
+
+    /** Close the main application window (used after switching to an external screen). */
+    public void closeWindow() {
+        if (frame != null) {
+            frame.dispose();
+        }
     }
     /*
     private void buildCenter() {

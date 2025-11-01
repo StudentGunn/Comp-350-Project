@@ -1,17 +1,20 @@
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.sql.SQLException;
+import javax.swing.*;
 
-public class LoginUI extends FoodDeliveryLoginUI {
+public class LoginUI {
 
+    private final FoodDeliveryLoginUI parent;
     private final JTextField userField = new JTextField(15);
     private final JPasswordField passField = new JPasswordField(15);
 
+    public LoginUI(FoodDeliveryLoginUI parent) {
+        this.parent = parent;
+    }
+
     public JPanel buildLoginPanel() {
         JPanel centerPanel = new JPanel(new GridBagLayout());
-        JTextField userField = new JTextField(15);
-        JPasswordField passField = new JPasswordField(15);
 
 
         // - creates the username and password label+field pairs and positions
@@ -25,21 +28,21 @@ public class LoginUI extends FoodDeliveryLoginUI {
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(6, 6, 6, 6);
 
-        c.gridx = 0; c.gridy = 0; c.anchor = GridBagConstraints.EAST;
-        centerPanel.add(new JLabel("Username:"), c);
-        c.gridx = 1; c.anchor = GridBagConstraints.WEST;
-        centerPanel.add(userField, c);
+    c.gridx = 0; c.gridy = 0; c.anchor = GridBagConstraints.EAST;
+    centerPanel.add(new JLabel("Username:"), c);
+    c.gridx = 1; c.anchor = GridBagConstraints.WEST;
+    centerPanel.add(userField, c);
 
-        c.gridx = 0; c.gridy = 1; c.anchor = GridBagConstraints.EAST;
-        centerPanel.add(new JLabel("Password:"), c);
-        c.gridx = 1; c.anchor = GridBagConstraints.WEST;
-        centerPanel.add(passField, c);
+    c.gridx = 0; c.gridy = 1; c.anchor = GridBagConstraints.EAST;
+    centerPanel.add(new JLabel("Password:"), c);
+    c.gridx = 1; c.anchor = GridBagConstraints.WEST;
+    centerPanel.add(passField, c);
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        JButton loginBtn = new JButton("Login");
-        loginBtn.addActionListener(this::onLogin);
-        JButton registerBtn = new JButton("Register");
-        registerBtn.addActionListener(this::onRegister);
+    JButton loginBtn = new JButton("Login");
+    loginBtn.addActionListener(this::onLogin);
+    JButton registerBtn = new JButton("Register");
+    registerBtn.addActionListener(this::onRegister);
         btns.add(loginBtn);
         btns.add(registerBtn);
 
@@ -66,44 +69,34 @@ public class LoginUI extends FoodDeliveryLoginUI {
 
     // Upload background removed; background controlled programmatically.
     public void onLogin(ActionEvent e) {
-        messageLabel.setForeground(Color.RED);
         String user = userField.getText().trim();
         String pass = new String(passField.getPassword()).trim();
 
         if (user.isEmpty() || pass.isEmpty()) {
-            messageLabel.setForeground(Color.RED);
-            messageLabel.setText("Please enter username and password.");
+            JOptionPane.showMessageDialog(null, "Please enter username and password.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        // Hash the password input to a hex string. sha256Hex returns a String.
-        // Steps:
-        // 1) read password char[] from passField and convert to String
-        // 2) call sha256Hex(pass) to produce a hex String
-        // 3) pass the username (String) and password hash (String) to
-        //    userDb.authenticate(user, hash) which compares the stored value
-        // Note: both username and hash are passed as JDBC Strings to PreparedStatement.setString
-        String hash = sha256Hex(pass);
+
         try {
-            if (userDb == null) {
-                messageLabel.setForeground(Color.RED);
-                messageLabel.setText("User database not initialized.");
+            String hash = FoodDeliveryLoginUI.sha256Hex(pass);
+            if (parent.userDb == null) {
+                JOptionPane.showMessageDialog(null, "User database not initialized.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             // Ask the database to verify the provided password hash
             // matches the stored value for this username.
-            boolean ok = userDb.authenticate(user, hash);
+            boolean ok = parent.userDb.authenticate(user, hash);
             if (ok) {
-                messageLabel.setForeground(new Color(0, 128, 0));
-                messageLabel.setText("Login successful. Welcome, " + user + "!");
                 passField.setText("");
+                // open MainScreen and close the login window
+                MainScreen mainScreen = new MainScreen(parent, user);
+                parent.getSceneSorter().addScene("MainScreen", mainScreen);
+                parent.getSceneSorter().switchPage("MainScreen");
             } else {
-                messageLabel.setForeground(Color.RED);
-                messageLabel.setText("Invalid username or password.");
+                JOptionPane.showMessageDialog(null, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
-            messageLabel.setForeground(Color.RED);
-            messageLabel.setText("DB error: " + ex.getMessage());
+            JOptionPane.showMessageDialog(null, "DB error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -125,8 +118,7 @@ public class LoginUI extends FoodDeliveryLoginUI {
         if (user == null) return;
         user = user.trim();
         if (user.isEmpty()) {
-            messageLabel.setForeground(Color.RED);
-            messageLabel.setText("Username cannot be empty.");
+            JOptionPane.showMessageDialog(null, "Username cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         JPasswordField pf = new JPasswordField();
@@ -137,27 +129,22 @@ public class LoginUI extends FoodDeliveryLoginUI {
             JOptionPane.showMessageDialog(null, "Password cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        String hash = sha256Hex(pass);
+    String hash = FoodDeliveryLoginUI.sha256Hex(pass);
         try {
-            if (userDb == null) {
-                messageLabel.setForeground(Color.RED);
-                messageLabel.setText("User database not initialized.");
+            if (parent.userDb == null) {
+                JOptionPane.showMessageDialog(null, "User database not initialized.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             // Check DB to ensure the username isn't already taken.
-            if (userDb.userExists(user)) {
-                messageLabel.setForeground(Color.RED);
-                messageLabel.setText("Username already exists.");
+            if (parent.userDb.userExists(user)) {
+                JOptionPane.showMessageDialog(null, "Username already exists.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             // Insert the new user record into the SQLite database.
-            userDb.register(user, hash);
-            messageLabel.setForeground(new Color(0, 128, 0));
-            messageLabel.setText("Registered successfully. You can now login.");
+            parent.userDb.register(user, hash);
+            JOptionPane.showMessageDialog(null, "Registered successfully. You can now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
         } catch (SQLException ex) {
-            ex.printStackTrace();
-            messageLabel.setForeground(Color.RED);
-            messageLabel.setText("Failed to save user: " + ex.getMessage());
+            JOptionPane.showMessageDialog(null, "Failed to save user: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
