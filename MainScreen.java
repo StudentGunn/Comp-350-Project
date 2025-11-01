@@ -64,10 +64,18 @@ public class MainScreen extends JPanel {
     }
 
     private void openOrderScreen() {
-        // Placeholder for actual order screen navigation
-        JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
-                "Order screen not implemented.\n(Here you would start the ordering flow.)",
-                "Order", JOptionPane.INFORMATION_MESSAGE);
+        if (zipCode.isEmpty()) {
+            JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
+                    "Please enter your zip code first to see available restaurants.",
+                    "Zip Code Required", JOptionPane.WARNING_MESSAGE);
+            promptZipCode();
+            return;
+        }
+        
+        // Create and show the restaurant screen
+        ResturantScreen restaurantScreen = new ResturantScreen(parent, username, zipCode);
+        parent.getSceneSorter().addScene("RestaurantScreen", restaurantScreen);
+        parent.getSceneSorter().switchPage("RestaurantScreen");
     }
 
     private void promptZipCode() {
