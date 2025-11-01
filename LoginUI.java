@@ -105,15 +105,43 @@ public class LoginUI {
     // - computes SHA-256 hex of password
     // - calls userDb.authenticate(username, hash) to check credentials
     // - updates messageLabel with success or failure messages
+    private String showUserTypeDialog() {
+        JDialog dialog = new JDialog((Frame)SwingUtilities.getWindowAncestor(userField), "Select User Type", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+        dialog.setSize(300, 150);
+        dialog.setLocationRelativeTo(null);
+
+        JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JButton customerBtn = new JButton("Customer");
+        JButton driverBtn = new JButton("Driver");
+        
+        final String[] result = {null};
+        
+        customerBtn.addActionListener(e -> {
+            result[0] = "CUSTOMER";
+            dialog.dispose();
+        });
+        
+        driverBtn.addActionListener(e -> {
+            result[0] = "DRIVER";
+            dialog.dispose();
+        });
+
+        buttonPanel.add(customerBtn);
+        buttonPanel.add(driverBtn);
+        dialog.add(buttonPanel, BorderLayout.CENTER);
+        dialog.setVisible(true);
+        
+        return result[0];
+    }
+
     public void onRegister(ActionEvent e) {
-        // Registration flow (step-level):
-        // 1) Prompt for username (String) via JOptionPane and trim whitespace
-        // 2) Prompt for password in a JPasswordField (char[]), convert to String
-        // 3) Compute password hash (sha256Hex) producing a String hex
-        // 4) Call userDb.userExists(user) which uses p.setString(1, user)
-        //    to bind the username as a JDBC String for the SELECT
-        // 5) If not exists, call userDb.register(user, hash): this uses
-        //    p.setString for username/hash and p.setLong for created_at
+        // First, let user choose their type
+        String userType = showUserTypeDialog();
+        if (userType == null) return; // User cancelled
+
         String user = JOptionPane.showInputDialog(null, "Choose a username:", "Register", JOptionPane.QUESTION_MESSAGE);
         if (user == null) return;
         user = user.trim();
@@ -121,6 +149,8 @@ public class LoginUI {
             JOptionPane.showMessageDialog(null, "Username cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+
+        // Get password
         JPasswordField pf = new JPasswordField();
         int ok = JOptionPane.showConfirmDialog(null, pf, "Enter password:", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (ok != JOptionPane.OK_OPTION) return;
@@ -129,7 +159,18 @@ public class LoginUI {
             JOptionPane.showMessageDialog(null, "Password cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-    String hash = FoodDeliveryLoginUI.sha256Hex(pass);
+
+        // Get additional information
+        String fullName = JOptionPane.showInputDialog(null, "Enter your full name:", "Registration", JOptionPane.QUESTION_MESSAGE);
+        if (fullName == null || fullName.trim().isEmpty()) return;
+
+        String email = JOptionPane.showInputDialog(null, "Enter your email:", "Registration", JOptionPane.QUESTION_MESSAGE);
+        if (email == null || email.trim().isEmpty()) return;
+
+        String phone = JOptionPane.showInputDialog(null, "Enter your phone number:", "Registration", JOptionPane.QUESTION_MESSAGE);
+        if (phone == null || phone.trim().isEmpty()) return;
+
+        String hash = FoodDeliveryLoginUI.sha256Hex(pass);
         try {
             if (parent.userDb == null) {
                 JOptionPane.showMessageDialog(null, "User database not initialized.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -141,8 +182,19 @@ public class LoginUI {
                 return;
             }
             // Insert the new user record into the SQLite database.
-            parent.userDb.register(user, hash);
-            JOptionPane.showMessageDialog(null, "Registered successfully. You can now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            parent.userDb.register(user, hash, userType, fullName.trim(), email.trim(), phone.trim());
+            // If driver, immediately open the DriverScreen panel; otherwise show success message
+            if ("DRIVER".equals(userType)) {
+                DriverScreen driverScreen = new DriverScreen(parent, user);
+                try {
+                    parent.getSceneSorter().addScene("DriverScreen", driverScreen);
+                } catch (IllegalArgumentException ex) {
+                    // scene already exists; ignore and switch to it
+                }
+                parent.getSceneSorter().switchPage("DriverScreen");
+            } else {
+                JOptionPane.showMessageDialog(null, "Registered successfully. You can now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            }
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(null, "Failed to save user: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
