@@ -76,6 +76,45 @@ public class LoginUI {
             JOptionPane.showMessageDialog(null, "Please enter username and password.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+        
+        // Check if this is an admin login attempt
+        if (user.equals("FoodDashAdmin")) {
+            try {
+                if (!parent.userDb.authenticate(user, FoodDeliveryLoginUI.sha256Hex(pass))) {
+                    JOptionPane.showMessageDialog(null, "Invalid admin credentials.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                // Admin credentials correct, now prompt for hash code
+                String hashCode = JOptionPane.showInputDialog(null, 
+                    "Please enter your admin hash code:", 
+                    "Admin Authentication", 
+                    JOptionPane.QUESTION_MESSAGE);
+                
+                if (hashCode == null || hashCode.trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "Hash code required for admin access.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                if (!parent.userDb.verifyAdminHash(user, hashCode.trim())) {
+                    JOptionPane.showMessageDialog(null, "Invalid admin hash code.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                // Admin authentication successful
+                AdminScreen adminScreen = new AdminScreen(parent);
+                try {
+                    parent.getSceneSorter().addScene("AdminScreen", adminScreen);
+                } catch (IllegalArgumentException ex) {
+                    // Scene already exists, that's fine
+                }
+                parent.getSceneSorter().switchPage("AdminScreen");
+                return;
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(null, "Database error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
 
         try {
             String hash = FoodDeliveryLoginUI.sha256Hex(pass);

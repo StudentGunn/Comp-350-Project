@@ -19,6 +19,10 @@ public class UserDataBase {
         this.url = "jdbc:sqlite:" + dbPath.toAbsolutePath().toString();
     }
 
+    public String getConnectionUrl() {
+        return url;
+    }
+
     /** Create the users table if it doesn't exist. 
      * creates method init
      * trys to connect to the database
@@ -37,30 +41,88 @@ public class UserDataBase {
             try (Connection c = DriverManager.getConnection(url);
                  Statement s = c.createStatement()) {
             
-                // First, check if we need to update the table structure
+                // Check for necessary column updates
                 boolean needsUpdate = false;
+                boolean needsAdminHash = false;
+                
+                // Check if user_type exists
                 try (ResultSet rs = s.executeQuery("SELECT user_type FROM users LIMIT 1")) {
                     // If this succeeds, the column exists
                 } catch (SQLException ex) {
-                    // Column doesn't exist, we need to update
                     needsUpdate = true;
+                }
+
+                // Check if admin_hash exists
+                try (ResultSet rs = s.executeQuery("SELECT admin_hash FROM users LIMIT 1")) {
+                    // If this succeeds, the column exists
+                } catch (SQLException ex) {
+                    needsAdminHash = true;
                 }
 
                 if (needsUpdate) {
                     // Drop and recreate the table with new structure
                     s.executeUpdate("DROP TABLE IF EXISTS users");
+                } else if (needsAdminHash) {
+                    // Add admin_hash column to existing table
+                    try {
+                        s.executeUpdate("ALTER TABLE users ADD COLUMN admin_hash TEXT");
+                    } catch (SQLException ex) {
+                        // Column might have been added by another process, ignore
+                    }
                 }
 
                 // Create users table with all fields
                 s.executeUpdate("CREATE TABLE IF NOT EXISTS users ("
                         + "username TEXT PRIMARY KEY,"
                         + "password_hash TEXT NOT NULL,"
-                        + "user_type TEXT NOT NULL,"  // 'CUSTOMER' or 'DRIVER'
+                        + "user_type TEXT NOT NULL,"  // 'CUSTOMER', 'DRIVER', or 'ADMIN'
                         + "full_name TEXT,"
                         + "email TEXT,"
                         + "phone TEXT,"
-                        + "created_at INTEGER"
+                        + "created_at INTEGER,"
+                        + "admin_hash TEXT"
                         + ")");
+
+                // Create orders table
+                s.executeUpdate("CREATE TABLE IF NOT EXISTS orders ("
+                        + "order_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        + "customer_username TEXT NOT NULL,"
+                        + "restaurant_name TEXT NOT NULL,"
+                        + "status TEXT NOT NULL," // 'PENDING', 'IN_PROGRESS', 'DELIVERED', 'CANCELLED'
+                        + "total_amount DECIMAL(10,2) NOT NULL,"
+                        + "created_at INTEGER NOT NULL,"
+                        + "driver_username TEXT,"
+                        + "FOREIGN KEY (customer_username) REFERENCES users(username),"
+                        + "FOREIGN KEY (driver_username) REFERENCES users(username)"
+                        + ")");
+                
+                // Create default admin accounts if they don't exist
+                String[] adminHashes = {
+                    "a1b2c3d4", "e5f6g7h8", "i9j0k1l2", "m3n4o5p6"
+                };
+                
+                String adminPass = FoodDeliveryLoginUI.sha256Hex("FoodDashRocks");
+                PreparedStatement adminCheck = c.prepareStatement("SELECT COUNT(*) FROM users WHERE user_type = 'ADMIN'");
+                ResultSet rs = adminCheck.executeQuery();
+                if (rs.next() && rs.getInt(1) == 0) {
+                    PreparedStatement adminInsert = c.prepareStatement(
+                        "INSERT INTO users (username, password_hash, user_type, admin_hash, created_at) VALUES (?, ?, 'ADMIN', ?, ?)"
+                    );
+                    for (int i = 0; i < 4; i++) {
+                        adminInsert.setString(1, "FoodDashAdmin");
+                        adminInsert.setString(2, adminPass);
+                        adminInsert.setString(3, adminHashes[i]);
+                        adminInsert.setLong(4, Instant.now().getEpochSecond());
+                        try {
+                            adminInsert.executeUpdate();
+                        } catch (SQLException ex) {
+                            // Ignore duplicate key errors
+                            if (!ex.getMessage().contains("UNIQUE constraint failed")) {
+                                throw ex;
+                            }
+                        }
+                    }
+                }
             }
     }
 
@@ -97,16 +159,40 @@ public class UserDataBase {
      *  returns true if the provided passwordHash matches the stored password_hash for the given username
     */
     public boolean authenticate(String username, String passwordHash) throws SQLException {
-        String sql = "SELECT password_hash FROM users WHERE username = ?";
+        String sql = "SELECT password_hash, user_type FROM users WHERE username = ?";
         try (Connection c = DriverManager.getConnection(url);
              PreparedStatement p = c.prepareStatement(sql)) {
             p.setString(1, username);
             try (ResultSet rs = p.executeQuery()) {
                 if (rs.next()) {
                     String stored = rs.getString(1);
+                    String userType = rs.getString(2);
                     return stored != null && stored.equals(passwordHash);
                 }
                 return false;
+            }
+        }
+    }
+
+    public boolean verifyAdminHash(String username, String adminHash) throws SQLException {
+        String sql = "SELECT 1 FROM users WHERE username = ? AND admin_hash = ? AND user_type = 'ADMIN'";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setString(1, username);
+            p.setString(2, adminHash);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+    
+    public boolean isAdmin(String username) throws SQLException {
+        String sql = "SELECT 1 FROM users WHERE username = ? AND user_type = 'ADMIN'";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setString(1, username);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next();
             }
         }
     }
@@ -126,6 +212,55 @@ public class UserDataBase {
             try (ResultSet rs = p.executeQuery()) {
                 return rs.next();
             }
+        }
+    }
+
+    public long createOrder(String customerUsername, String restaurantName, double totalAmount) throws SQLException {
+        String sql = "INSERT INTO orders (customer_username, restaurant_name, status, total_amount, created_at) "
+                  + "VALUES (?, ?, 'PENDING', ?, ?)";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            p.setString(1, customerUsername);
+            p.setString(2, restaurantName);
+            p.setDouble(3, totalAmount);
+            p.setLong(4, System.currentTimeMillis() / 1000);
+            p.executeUpdate();
+            
+            try (ResultSet rs = p.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+                throw new SQLException("Failed to retrieve generated order ID");
+            }
+        }
+    }
+
+    public void updateOrderStatus(long orderId, String status) throws SQLException {
+        String sql = "UPDATE orders SET status = ? WHERE order_id = ?";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setString(1, status);
+            p.setLong(2, orderId);
+            p.executeUpdate();
+        }
+    }
+
+    public void assignDriverToOrder(long orderId, String driverUsername) throws SQLException {
+        String sql = "UPDATE orders SET driver_username = ?, status = 'IN_PROGRESS' WHERE order_id = ?";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setString(1, driverUsername);
+            p.setLong(2, orderId);
+            p.executeUpdate();
+        }
+    }
+
+    public void cancelOrder(long orderId) throws SQLException {
+        String sql = "UPDATE orders SET status = 'CANCELLED', driver_username = NULL WHERE order_id = ?";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setLong(1, orderId);
+            p.executeUpdate();
         }
     }
 }
