@@ -99,66 +99,75 @@ public class AdminScreen extends JPanel {
     }
 
     private void refreshData() {
-        // Clear existing data
-        customersModel.setRowCount(0);
-        ordersModel.setRowCount(0);
+    // Clear existing data
+    customersModel.setRowCount(0);
+    ordersModel.setRowCount(0);
 
-        try (Connection conn = DriverManager.getConnection(parent.userDb.getConnectionUrl())) {
-            // Get customers
-            try (PreparedStatement custStmt = conn.prepareStatement(
-                    "SELECT username, full_name, email, phone FROM users WHERE user_type = 'CUSTOMER'")) {
-                
-                try (ResultSet rs = custStmt.executeQuery()) {
-                    while (rs.next()) {
-                        Object[] rowData = {
-                            rs.getString("username"),
-                            rs.getString("full_name"),
-                            rs.getString("email"),
-                            rs.getString("phone"),
-                            "Active" // You would need to implement actual session tracking
-                        };
-                        customersModel.addRow(rowData);
-                    }
+    // --- Fetch customers from users.db ---
+    try (Connection userConn = DriverManager.getConnection(parent.userDb.getConnectionUrl())) {
+        try (PreparedStatement custStmt = userConn.prepareStatement(
+                "SELECT username, full_name, email, phone FROM users WHERE user_type = 'CUSTOMER'")) {
+            
+            try (ResultSet rs = custStmt.executeQuery()) {
+                while (rs.next()) {
+                    Object[] rowData = {
+                        rs.getString("username"),
+                        rs.getString("full_name"),
+                        rs.getString("email"),
+                        rs.getString("phone"),
+                        "Active" // Placeholder for session tracking
+                    };
+                    customersModel.addRow(rowData);
                 }
             }
-
-            // Get orders
-            try (PreparedStatement orderStmt = conn.prepareStatement(
-                    "SELECT o.order_id, o.customer_username, o.restaurant_name, o.status, " +
-                    "o.total_amount, o.driver_username, o.item_count, o.estimated_minutes, " +
-                    "((o.created_at + (o.estimated_minutes * 60)) - strftime('%s', 'now')) / 60 as minutes_remaining " +
-                    "FROM orders o " +
-                    "ORDER BY o.created_at DESC")) {
-                
-                try (ResultSet rs = orderStmt.executeQuery()) {
-                    while (rs.next()) {
-                        String etaDisplay = "N/A";
-                        if (!"CANCELLED".equals(rs.getString("status")) && 
-                            !"DELIVERED".equals(rs.getString("status"))) {
-                            int minutesRemaining = rs.getInt("minutes_remaining");
-                            etaDisplay = minutesRemaining > 0 ? minutesRemaining + " min" : "Due now";
-                        }
-                        
-                        Object[] rowData = {
-                            rs.getLong("order_id"),
-                            rs.getString("customer_username"),
-                            rs.getString("restaurant_name"),
-                            rs.getString("status"),
-                            String.format("$%.2f", rs.getDouble("total_amount")),
-                            rs.getInt("item_count"),
-                            etaDisplay
-                        };
-                        ordersModel.addRow(rowData);
-                    }
-                }
-            }
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(this,
-                "Error refreshing data: " + ex.getMessage(),
-                "Database Error",
-                JOptionPane.ERROR_MESSAGE);
         }
+    } catch (SQLException ex) {
+        JOptionPane.showMessageDialog(this,
+            "Error fetching customers: " + ex.getMessage(),
+            "Database Error",
+            JOptionPane.ERROR_MESSAGE);
     }
+
+    // --- Fetch orders from orders.db ---
+    try (Connection orderConn = DriverManager.getConnection("jdbc:sqlite:orders.db")) {
+        try (PreparedStatement orderStmt = orderConn.prepareStatement(
+                "SELECT o.order_id, o.customer_username, o.restaurant_name, o.status, " +
+                "o.total_amount, o.item_count, o.estimated_minutes, " +
+                "((o.created_at + (o.estimated_minutes * 60)) - strftime('%s', 'now')) / 60 as minutes_remaining " +
+                "FROM orders o " +
+                "ORDER BY o.created_at DESC")) {
+            
+            try (ResultSet rs = orderStmt.executeQuery()) {
+                while (rs.next()) {
+                    String etaDisplay = "N/A";
+                    if (!"CANCELLED".equals(rs.getString("status")) && 
+                        !"DELIVERED".equals(rs.getString("status"))) {
+                        int minutesRemaining = rs.getInt("minutes_remaining");
+                        etaDisplay = minutesRemaining > 0 ? minutesRemaining + " min" : "Due now";
+                    }
+                    
+                    Object[] rowData = {
+                        rs.getLong("order_id"),
+                        rs.getString("customer_username"),
+                        rs.getString("restaurant_name"),
+                        rs.getString("status"),
+                        String.format("$%.2f", rs.getDouble("total_amount")),
+                        rs.getInt("item_count"),
+                        etaDisplay
+                    };
+                    ordersModel.addRow(rowData);
+                }
+            }
+        }
+    } catch (SQLException ex) {
+        JOptionPane.showMessageDialog(this,
+            "Error fetching orders: " + ex.getMessage(),
+            "Database Error",
+            JOptionPane.ERROR_MESSAGE);
+    }
+}
+
+    
 
     private void cancelSelectedOrder() {
         int selectedRow = ordersTable.getSelectedRow();
