@@ -127,15 +127,29 @@ public class LoginUI {
             boolean ok = parent.userDb.authenticate(user, hash);
             if (ok) {
                 passField.setText("");
-                // open MainScreen and close the login window
-                MainScreen mainScreen = new MainScreen(parent, user);
-                parent.getSceneSorter().addScene("MainScreen", mainScreen);
-                parent.getSceneSorter().switchPage("MainScreen");
+                
+                // Check user type and redirect accordingly
+                String userType = parent.userDb.getUserType(user);
+                if ("DRIVER".equals(userType)) {
+                    // For drivers, open DriverScreen
+                    DriverScreen driverScreen = new DriverScreen(parent, user);
+                    try {
+                        parent.getSceneSorter().addScene("DriverScreen", driverScreen);
+                    } catch (IllegalArgumentException ex) {
+                        // Scene already exists, that's fine
+                    }
+                    parent.getSceneSorter().switchPage("DriverScreen");
+                } else {
+                    // For customers, open MainScreen
+                    MainScreen mainScreen = new MainScreen(parent, user);
+                    parent.getSceneSorter().addScene("MainScreen", mainScreen);
+                    parent.getSceneSorter().switchPage("MainScreen");
+                }
             } else {
                 JOptionPane.showMessageDialog(null, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
             }
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "DB error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Database error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -222,8 +236,41 @@ public class LoginUI {
             }
             // Insert the new user record into the SQLite database.
             parent.userDb.register(user, hash, userType, fullName.trim(), email.trim(), phone.trim());
-            // If driver, immediately open the DriverScreen panel; otherwise show success message
+
+            // If registering a driver, collect additional driver information and register in driver database
             if ("DRIVER".equals(userType)) {
+                // Get vehicle information
+                String vehicleType = JOptionPane.showInputDialog(null, 
+                    "Enter your vehicle type (e.g., Car, Motorcycle, Bicycle):", 
+                    "Driver Registration", 
+                    JOptionPane.QUESTION_MESSAGE);
+                if (vehicleType == null || vehicleType.trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "Vehicle type is required for drivers.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                String licenseNumber = JOptionPane.showInputDialog(null, 
+                    "Enter your driver's license number:", 
+                    "Driver Registration", 
+                    JOptionPane.QUESTION_MESSAGE);
+                if (licenseNumber == null || licenseNumber.trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "License number is required for drivers.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                String serviceArea = JOptionPane.showInputDialog(null, 
+                    "Enter your preferred service area (ZIP code):", 
+                    "Driver Registration", 
+                    JOptionPane.QUESTION_MESSAGE);
+                if (serviceArea == null || serviceArea.trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "Service area is required for drivers.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // Register in driver database
+                parent.driverDb.registerDriver(user, vehicleType.trim(), licenseNumber.trim(), serviceArea.trim());
+
+                // Create and switch to driver screen
                 DriverScreen driverScreen = new DriverScreen(parent, user);
                 try {
                     parent.getSceneSorter().addScene("DriverScreen", driverScreen);

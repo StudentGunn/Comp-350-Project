@@ -29,6 +29,9 @@ public class FoodDeliveryLoginUI {
     private final JPanel cardPanel = new JPanel(new GridBagLayout());
     private final JFrame frame = new JFrame("Food Delivery Service");
     public UserDataBase userDb;
+    public PaymentDatabase paymentDb;
+    public DriverDatabase driverDb;
+    public OrderDatabase orderDb;
 
     public void createAndShow() {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

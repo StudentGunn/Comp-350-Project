@@ -71,29 +71,23 @@ public class UserDataBase {
                     }
                 }
 
+                // Enable foreign key support
+                s.executeUpdate("PRAGMA foreign_keys = ON");
+
                 // Create users table with all fields
                 s.executeUpdate("CREATE TABLE IF NOT EXISTS users ("
                         + "username TEXT PRIMARY KEY,"
                         + "password_hash TEXT NOT NULL,"
                         + "user_type TEXT NOT NULL,"  // 'CUSTOMER', 'DRIVER', or 'ADMIN'
-                        + "full_name TEXT,"
-                        + "email TEXT,"
+                        + "full_name TEXT NOT NULL,"
+                        + "email TEXT UNIQUE,"
                         + "phone TEXT,"
-                        + "created_at INTEGER,"
-                        + "admin_hash TEXT"
-                        + ")");
-
-                // Create orders table
-                s.executeUpdate("CREATE TABLE IF NOT EXISTS orders ("
-                        + "order_id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        + "customer_username TEXT NOT NULL,"
-                        + "restaurant_name TEXT NOT NULL,"
-                        + "status TEXT NOT NULL," // 'PENDING', 'IN_PROGRESS', 'DELIVERED', 'CANCELLED'
-                        + "total_amount DECIMAL(10,2) NOT NULL,"
                         + "created_at INTEGER NOT NULL,"
-                        + "driver_username TEXT,"
-                        + "FOREIGN KEY (customer_username) REFERENCES users(username),"
-                        + "FOREIGN KEY (driver_username) REFERENCES users(username)"
+                        + "admin_hash TEXT,"
+                        + "last_login INTEGER,"
+                        + "status TEXT DEFAULT 'ACTIVE'," // 'ACTIVE', 'SUSPENDED', 'DELETED'
+                        + "CHECK (user_type IN ('CUSTOMER', 'DRIVER', 'ADMIN')),"
+                        + "CHECK ((user_type = 'ADMIN' AND admin_hash IS NOT NULL) OR user_type != 'ADMIN')"
                         + ")");
                 
                 // Create default admin accounts if they don't exist
@@ -166,7 +160,6 @@ public class UserDataBase {
             try (ResultSet rs = p.executeQuery()) {
                 if (rs.next()) {
                     String stored = rs.getString(1);
-                    String userType = rs.getString(2);
                     return stored != null && stored.equals(passwordHash);
                 }
                 return false;
@@ -215,48 +208,28 @@ public class UserDataBase {
         }
     }
 
-    public long createOrder(String customerUsername, String restaurantName, double totalAmount) throws SQLException {
-        String sql = "INSERT INTO orders (customer_username, restaurant_name, status, total_amount, created_at) "
-                  + "VALUES (?, ?, 'PENDING', ?, ?)";
+    /**
+     * Get the user type (CUSTOMER, DRIVER, or ADMIN) for a given username
+     */
+    public String getUserType(String username) throws SQLException {
+        String sql = "SELECT user_type FROM users WHERE username = ?";
         try (Connection c = DriverManager.getConnection(url);
-             PreparedStatement p = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            p.setString(1, customerUsername);
-            p.setString(2, restaurantName);
-            p.setDouble(3, totalAmount);
-            p.setLong(4, System.currentTimeMillis() / 1000);
-            p.executeUpdate();
-            
-            try (ResultSet rs = p.getGeneratedKeys()) {
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setString(1, username);
+            try (ResultSet rs = p.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getLong(1);
+                    return rs.getString("user_type");
                 }
-                throw new SQLException("Failed to retrieve generated order ID");
+                return null;
             }
         }
     }
 
-    public void updateOrderStatus(long orderId, String status) throws SQLException {
-        String sql = "UPDATE orders SET status = ? WHERE order_id = ?";
-        try (Connection c = DriverManager.getConnection(url);
-             PreparedStatement p = c.prepareStatement(sql)) {
-            p.setString(1, status);
-            p.setLong(2, orderId);
-            p.executeUpdate();
-        }
-    }
-
-    public void assignDriverToOrder(long orderId, String driverUsername) throws SQLException {
-        String sql = "UPDATE orders SET driver_username = ?, status = 'IN_PROGRESS' WHERE order_id = ?";
-        try (Connection c = DriverManager.getConnection(url);
-             PreparedStatement p = c.prepareStatement(sql)) {
-            p.setString(1, driverUsername);
-            p.setLong(2, orderId);
-            p.executeUpdate();
-        }
-    }
-
+    /**
+     * Cancel an order by its ID. Sets the status to 'CANCELLED'.
+     */
     public void cancelOrder(long orderId) throws SQLException {
-        String sql = "UPDATE orders SET status = 'CANCELLED', driver_username = NULL WHERE order_id = ?";
+        String sql = "UPDATE orders SET status = 'CANCELLED' WHERE order_id = ?";
         try (Connection c = DriverManager.getConnection(url);
              PreparedStatement p = c.prepareStatement(sql)) {
             p.setLong(1, orderId);

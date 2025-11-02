@@ -49,17 +49,44 @@ public class DriverScreen extends JPanel {
 
 	add(center, BorderLayout.CENTER);
 
-	// Simple placeholder actions
-	getOrderBtn.addActionListener(e -> JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
-		"GetOrder not implemented yet.", "GetOrder", JOptionPane.INFORMATION_MESSAGE));
+	
 
-	deliveryHistoryBtn.addActionListener(e -> JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
-		"Delivery history not implemented yet.", "Delivery History", JOptionPane.INFORMATION_MESSAGE));
+	
+
+	// Connect to DriverGetOrder screen
+	getOrderBtn.addActionListener(e -> {
+		DriverGetOrder getOrderScreen = new DriverGetOrder(parent, username);
+		try {
+			parent.getSceneSorter().addScene("DriverGetOrder", getOrderScreen);
+		} catch (IllegalArgumentException ex) {
+			// Scene already exists, that's fine
+		}
+		parent.getSceneSorter().switchPage("DriverGetOrder");
+	});
+
+	deliveryHistoryBtn.addActionListener(e -> {
+		DriveryHistory historyScreen = new DriveryHistory(parent, username);
+		try {
+			parent.getSceneSorter().addScene("DriverHistory", historyScreen);
+		} catch (IllegalArgumentException ex) {
+			// Scene already exists, that's fine
+		}
+		parent.getSceneSorter().switchPage("DriverHistory");
+	});
 
 	paymentHistoryBtn.addActionListener(e -> JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
 		"Payment history not implemented yet.", "Payment History", JOptionPane.INFORMATION_MESSAGE));
 
-	paymentMethodBtn.addActionListener(e -> JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(this),
-		"Payment method management not implemented yet.", "Payment Method", JOptionPane.INFORMATION_MESSAGE));
+	paymentMethodBtn.addActionListener(e -> {
+		DriverSetPaymentMethod paymentMethodScreen = new DriverSetPaymentMethod(parent, username);
+		try {
+			parent.getSceneSorter().addScene("DriverSetPaymentMethod", paymentMethodScreen);
+		} catch (IllegalArgumentException ex) {
+			// Scene already exists, that's fine
+		}
+		parent.getSceneSorter().switchPage("DriverSetPaymentMethod");
+		
+	});
+	
     }
 }

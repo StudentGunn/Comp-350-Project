@@ -15,7 +15,7 @@ public class AdminScreen extends JPanel {
         
         // Create table models
         String[] customerColumns = {"Username", "Full Name", "Email", "Phone", "Status"};
-        String[] orderColumns = {"Order ID", "Customer", "Restaurant", "Status", "Total"};
+        String[] orderColumns = {"Order ID", "Customer", "Restaurant", "Status", "Total", "Items", "ETA (mins)"};
         
         customersModel = new DefaultTableModel(customerColumns, 0) {
             @Override
@@ -125,18 +125,28 @@ public class AdminScreen extends JPanel {
             // Get orders
             try (PreparedStatement orderStmt = conn.prepareStatement(
                     "SELECT o.order_id, o.customer_username, o.restaurant_name, o.status, " +
-                    "o.total_amount, o.driver_username " +
+                    "o.total_amount, o.driver_username, o.item_count, o.estimated_minutes, " +
+                    "((o.created_at + (o.estimated_minutes * 60)) - strftime('%s', 'now')) / 60 as minutes_remaining " +
                     "FROM orders o " +
                     "ORDER BY o.created_at DESC")) {
                 
                 try (ResultSet rs = orderStmt.executeQuery()) {
                     while (rs.next()) {
+                        String etaDisplay = "N/A";
+                        if (!"CANCELLED".equals(rs.getString("status")) && 
+                            !"DELIVERED".equals(rs.getString("status"))) {
+                            int minutesRemaining = rs.getInt("minutes_remaining");
+                            etaDisplay = minutesRemaining > 0 ? minutesRemaining + " min" : "Due now";
+                        }
+                        
                         Object[] rowData = {
                             rs.getLong("order_id"),
                             rs.getString("customer_username"),
                             rs.getString("restaurant_name"),
                             rs.getString("status"),
-                            String.format("$%.2f", rs.getDouble("total_amount"))
+                            String.format("$%.2f", rs.getDouble("total_amount")),
+                            rs.getInt("item_count"),
+                            etaDisplay
                         };
                         ordersModel.addRow(rowData);
                     }

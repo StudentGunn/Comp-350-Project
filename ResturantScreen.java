@@ -96,22 +96,42 @@ public class ResturantScreen extends JPanel {
 
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
-        JLabel label = new JLabel("Select items to order:");
+        JLabel label = new JLabel("Select items to order from " + restaurantName);
+        label.setFont(label.getFont().deriveFont(Font.BOLD, 14f));
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(label);
+        panel.add(Box.createVerticalStrut(10));
         
         JCheckBox[] checkBoxes = new JCheckBox[menuItems.length];
         JSpinner[] quantities = new JSpinner[menuItems.length];
         
         for (int i = 0; i < menuItems.length; i++) {
-            JPanel itemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JPanel itemPanel = new JPanel();
+            itemPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+            itemPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            
             checkBoxes[i] = new JCheckBox(menuItems[i]);
+            checkBoxes[i].setFont(checkBoxes[i].getFont().deriveFont(12f));
+            
             quantities[i] = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
-            quantities[i].setPreferredSize(new Dimension(50, 25));
+            quantities[i].setPreferredSize(new Dimension(60, 25));
+            ((JSpinner.DefaultEditor)quantities[i].getEditor()).getTextField().setColumns(2);
+            
             itemPanel.add(checkBoxes[i]);
             itemPanel.add(quantities[i]);
             panel.add(itemPanel);
         }
+        
+        // Add a note about quantity
+        JLabel noteLabel = new JLabel("* Use spinners to select quantity (1-10)");
+        noteLabel.setFont(noteLabel.getFont().deriveFont(10f));
+        noteLabel.setForeground(Color.GRAY);
+        noteLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(Box.createVerticalStrut(10));
+        panel.add(noteLabel);
 
         int result = JOptionPane.showConfirmDialog(this, panel, 
                 "Order from " + restaurantName,
@@ -154,12 +174,59 @@ public class ResturantScreen extends JPanel {
                 
             if (confirm == JOptionPane.OK_OPTION) {
                 try {
+                    // Count total items
+                    int totalItems = 0;
+                    for (int i = 0; i < checkBoxes.length; i++) {
+                        if (checkBoxes[i].isSelected()) {
+                            totalItems += (Integer)quantities[i].getValue();
+                        }
+                    }
+                    
+                    // Get active payment method
+                    PaymentInformation paymentInfo = parent.paymentDb.getActivePaymentMethod(username);
+                    if (paymentInfo == null) {
+                        JOptionPane.showMessageDialog(this,
+                            "Please set up a payment method first.",
+                            "Payment Required",
+                            JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+
                     // Create the order in the database
-                    long orderId = parent.userDb.createOrder(username, restaurantName, total);
+                    long orderId = parent.orderDb.createOrder(username, restaurantName, 
+                        "123 Main St", // TODO: Get actual delivery address
+                        "No special instructions", // TODO: Add special instructions field
+                        total,
+                        totalItems,  // Using the total items count we calculated above
+                        paymentInfo.getPaymentType());
+                    
+                    // Add each ordered item to the database
+                    for (int i = 0; i < checkBoxes.length; i++) {
+                        if (checkBoxes[i].isSelected()) {
+                            int quantity = (Integer)quantities[i].getValue();
+                            String itemName = menuItems[i].split(" - ")[0];
+                            double price = prices[i];
+                            parent.orderDb.addOrderItem(orderId, itemName, quantity, price, null);
+                        }
+                    }
+                    
+                    // Calculate and show ETA
+                    ETA eta = new ETA((int)orderId, totalItems);
+                    String confirmMessage = String.format(
+                        "Order #%d placed successfully!\n" +
+                        "Total: $%.2f\n\n" +
+                        "%s",
+                        orderId, total, eta.getETAMessage());
+                    
                     JOptionPane.showMessageDialog(this,
-                        String.format("Order #%d placed successfully!\nTotal: $%.2f", orderId, total),
+                        confirmMessage,
                         "Order Confirmation",
                         JOptionPane.INFORMATION_MESSAGE);
+                        
+                    // Switch back to main screen to show order status
+                    MainScreen mainScreen = new MainScreen(parent, username);
+                    parent.getSceneSorter().addScene("MainScreen", mainScreen);
+                    parent.getSceneSorter().switchPage("MainScreen");
                 } catch (SQLException ex) {
                     JOptionPane.showMessageDialog(this,
                         "Error creating order: " + ex.getMessage(),
