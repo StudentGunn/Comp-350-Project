@@ -1,11 +1,9 @@
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.SQLException;
 import javax.swing.*;
 
 /*
@@ -16,76 +14,35 @@ import javax.swing.*;
  * - Passwords are stored as SHA-256 hex hashes replace with a proper KDF for production
  */
 public class FoodDeliveryLoginUI {
-
-
-    private final JFrame frame = new JFrame("Food Delivery Service");
     // use a custom panel that can draw a color or an image as background
     private final BackgroundPanel main = new BackgroundPanel();
+    private final SceneSorter sceneSorter = new SceneSorter();
+    public final JLabel messageLabel = new JLabel(" ", SwingConstants.CENTER);
 
-    private final JTextField userField = new JTextField(15);
-    private final JPasswordField passField = new JPasswordField(15);
-    private final JLabel messageLabel = new JLabel(" ", SwingConstants.CENTER);
+    public SceneSorter getSceneSorter() {
+        return sceneSorter;
+    }
     // expose title so we can toggle opacity when admin wants the image to cover whole UI
     private final ShadowLabel titleLabel = new ShadowLabel("Welcome to ordering with Food Delivery Service");
-
     private final JPanel centerPanel = new JPanel(new GridBagLayout());
     // a card panel so form controls are readable over image backgrounds
     private final JPanel cardPanel = new JPanel(new GridBagLayout());
+    private final JFrame frame = new JFrame("Food Delivery Service");
+    public UserDataBase userDb;
+    public PaymentDatabase paymentDb;
+    public DriverDatabase driverDb;
+    public OrderDatabase orderDb;
 
-    private UserDataBase userDb;
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            FoodDeliveryLoginUI app = new FoodDeliveryLoginUI();
-            // initialize SQLite DB
-            try {
-                app.userDb = new UserDataBase(java.nio.file.Path.of("users.db"));
-                app.userDb.init();
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                // Surface initialization error in the UI so user sees that DB is required
-                JOptionPane.showMessageDialog(null, "Failed to initialize user database: " + ex.getMessage(), "DB error", JOptionPane.ERROR_MESSAGE);
-            }
-            try {
-                app.setBackgroundImage(java.nio.file.Paths.get("C:\\Users\\skylg\\OneDrive\\Desktop\\Food Deilvery app.jpg"), true);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Failed to load background image: " + ex.getMessage(), "Image load error", JOptionPane.ERROR_MESSAGE);
-            }
-            app.createAndShow();
-        });
-    }
-
-    // main() summary:
-    // - runs on the Event Dispatch Thread using SwingUtilities.invokeLater
-    // - constructs FoodDeliveryLoginUI, attempts to initialize the SQLite-backed
-    //   UserDatabase (creating users.db if missing) and loads a background image
-    // - any initialization failures are shown to the user via dialogs so they
-    //   understand DB or image problems early
-
-    private void createAndShow() {
+    public void createAndShow() {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(420, 260));
+    // Initialize Login UI with reference to this parent
+    LoginUI log = new LoginUI(this);
+    sceneSorter.addScene("Login", log.buildLoginPanel());
 
-    titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
-    main.add(titleLabel, BorderLayout.NORTH);
-
-        // (toolbar removed) background and color are controlled programmatically in code only
-
-    buildCenter();
-
-    // wrap the centerPanel in a translucent white card so controls are readable
-    cardPanel.setOpaque(true);
-    cardPanel.setBackground(new Color(255,255,255,220));
-        cardPanel.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
-        cardPanel.removeAll();
-        cardPanel.add(centerPanel, new GridBagConstraints());
-        JPanel wrapper = new JPanel(new GridBagLayout());
-        wrapper.setOpaque(false);
-        wrapper.add(cardPanel);
-        main.add(wrapper, BorderLayout.CENTER);
-
-        messageLabel.setForeground(Color.RED);
+        main.add(new ShadowLabel("Welcome to ordering with Food Delivery Service!"), BorderLayout.NORTH);
+        main.add(sceneSorter.getCardsPanel(), BorderLayout.CENTER);
+        sceneSorter.switchPage("Login");
         main.add(messageLabel, BorderLayout.SOUTH);
 
         frame.setContentPane(main);
@@ -93,14 +50,14 @@ public class FoodDeliveryLoginUI {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
+    //   builds the main window and layout, including title, form fields, and
+    //   buttons. CardLayout is also called here, allowing us to easily switch
+    //   between UI layouts in the future. Switchpage is used to ensure the first
+    //   page will always be login.
 
-    // createAndShow() summary:
-    // - builds the main window and layout, including title, form fields, and
-    //   buttons. The UI uses a translucent card (cardPanel) so controls are
-    //   readable over the background. This method finishes by packing and
-    //   showing the JFrame on screen.
+    // No CSV fallback: persistence is provided by the SQLite-backed UserDatabase only.
 
-    // Upload background removed; background controlled programmatically.
+    // --- utilities ---
 
     /*
      * Set the background image programmatically from an absolute path or relative path.
@@ -177,6 +134,13 @@ public class FoodDeliveryLoginUI {
         main.repaint();
     }
 
+    /** Close the main application window (used after switching to an external screen). */
+    public void closeWindow() {
+        if (frame != null) {
+            frame.dispose();
+        }
+    }
+    /*
     private void buildCenter() {
 
         // - creates the username and password label+field pairs and positions
@@ -315,8 +279,8 @@ public class FoodDeliveryLoginUI {
     //  Removed.CSV fall back, not allowed only provided by the SQLite-backed UserDatabase
 
     // --- utilities ---
-
-    private static String sha256Hex(String input) {
+    */
+    public static String sha256Hex(String input) {
         // sha256Hex(String input):
         // - input is the plaintext password string (UTF-8). This method:
         //   1) obtains a MessageDigest for SHA-256
@@ -395,9 +359,9 @@ class BackgroundPanel extends JPanel {
     }
 }
 
-/**
+/*
  * JLabel with a subtle drop shadow to improve readability over images.
- */
+*/
 class ShadowLabel extends JLabel {
     private Color shadowColor = new Color(0,0,0,160);
     private int offset = 2;
