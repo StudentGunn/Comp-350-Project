@@ -1,7 +1,18 @@
+// AdminScreen.java
 import java.awt.*;
 import java.sql.*;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+
+
+/* Admin Screen 
+ * Displays active customers and current orders
+ * Allows admin to refresh data and cancel orders
+ * Creates controllers for admin actions
+ * Accesses userDb for order management
+ * and OrderDatabase for order data
+ * Provides logout functionality *still working on for all screens*
+ */
 
 public class AdminScreen extends JPanel {
     private final FoodDeliveryLoginUI parent;
@@ -37,7 +48,13 @@ public class AdminScreen extends JPanel {
         initUI();
         refreshData();
     }
-
+/*
+ * Initializes the user interface components for the Admin Screen
+ * Sets up layout, panels, buttons, and tables
+ * Configures action listeners for buttons
+ * Initializes data retrieval for tables
+ * Sets up table models and data rendering, for customers and orders
+ */
     private void initUI() {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -103,7 +120,7 @@ public class AdminScreen extends JPanel {
     customersModel.setRowCount(0);
     ordersModel.setRowCount(0);
 
-    // --- Fetch customers from users.db ---
+    //  Connect to grab info customers from users.db
     try (Connection userConn = DriverManager.getConnection(parent.userDb.getConnectionUrl())) {
         try (PreparedStatement custStmt = userConn.prepareStatement(
                 "SELECT username, full_name, email, phone FROM users WHERE user_type = 'CUSTOMER'")) {
@@ -128,7 +145,7 @@ public class AdminScreen extends JPanel {
             JOptionPane.ERROR_MESSAGE);
     }
 
-    // --- Fetch orders from orders.db ---
+    // Connect to grab order info from orders.db 
     try (Connection orderConn = DriverManager.getConnection("jdbc:sqlite:orders.db")) {
         try (PreparedStatement orderStmt = orderConn.prepareStatement(
                 "SELECT o.order_id, o.customer_username, o.restaurant_name, o.status, " +
@@ -167,7 +184,13 @@ public class AdminScreen extends JPanel {
     }
 }
 
-    
+    /*
+     * Cancels the selected order from the orders table
+     * Prompts for confirmation before cancelling
+     * Updates the database and refreshes the data display
+     * Handles SQL exceptions and shows error messages
+     * Gives feedback to admin on success or failure, based on operation outcome
+     */
 
     private void cancelSelectedOrder() {
         int selectedRow = ordersTable.getSelectedRow();
