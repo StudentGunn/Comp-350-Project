@@ -24,6 +24,13 @@ public class MainApp {
                 app.userDb.init();
                 System.out.println("User database initialized successfully");
 
+                // Initialize the default admin account (FoodDashAdmin)
+                // Default password: "admin123" (hashed with SHA-256)
+                // Default hash code: "ADMIN2024"
+                String adminPassword = FoodDeliveryLoginUI.sha256Hex("admin123");
+                app.userDb.initializeAdmin("FoodDashAdmin", adminPassword, "ADMIN2024");
+                System.out.println("Admin account initialized");
+
                 // 2. Initialize DriverDatabase as it depends on users table " to contain drivers information, not temporary"
                 app.driverDb = new DriverDatabase(java.nio.file.Path.of("drivers.db"));
                 app.driverDb.init();

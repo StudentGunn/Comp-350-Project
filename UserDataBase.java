@@ -159,4 +159,22 @@ public class UserDataBase {
         // For now, throw an exception indicating this method should be moved
         throw new UnsupportedOperationException("cancelOrder should be called on OrderDatabase, not UserDatabase");
     }
+
+    /* Initialize admin account if it doesn't exist */
+    public void initializeAdmin(String adminUsername, String adminPassword, String adminHashCode) throws SQLException {
+        if (!userExists(adminUsername)) {
+            // Register admin with ADMIN user type
+            register(adminUsername, adminPassword, "ADMIN", "System Administrator", "admin@fooddelivery.com", "000-000-0000");
+            
+            // Set the admin hash code
+            String sql = "UPDATE users SET admin_hash = ? WHERE username = ?";
+            try (Connection c = DriverManager.getConnection(url);
+                 PreparedStatement p = c.prepareStatement(sql)) {
+                p.setString(1, adminHashCode);
+                p.setString(2, adminUsername);
+                p.executeUpdate();
+            }
+            System.out.println("Admin account created: " + adminUsername);
+        }
+    }
 }

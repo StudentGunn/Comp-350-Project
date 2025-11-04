@@ -71,6 +71,14 @@ public class DriverDatabase {
                     + "is_active BOOLEAN DEFAULT 1,"
                     + "FOREIGN KEY (driver_username) REFERENCES drivers(username)"
                     + ")");
+
+            // Add performance indexes for frequently queried columns
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_drivers_status ON drivers(current_status)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_drivers_rating ON drivers(rating)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_delivery_history_driver ON delivery_history(driver_username)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_delivery_history_order ON delivery_history(order_id)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_delivery_history_status ON delivery_history(delivery_status)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_driver_schedule_driver ON driver_schedule(driver_username)");
         }
     }
 
@@ -125,20 +133,23 @@ public class DriverDatabase {
     }
 
     public void updateRating(String username, long orderId, int rating, String feedback) throws SQLException {
-        String sql = "UPDATE delivery_history SET customer_rating = ?, customer_feedback = ? "
-                  + "WHERE driver_username = ? AND order_id = ?";
-        try (Connection c = DriverManager.getConnection(url);
-             PreparedStatement p = c.prepareStatement(sql)) {
-            p.setInt(1, rating);
-            p.setString(2, feedback);
-            p.setString(3, username);
-            p.setLong(4, orderId);
-            p.executeUpdate();
+        // Optimized: Reuse the same connection for both updates instead of creating a nested statement
+        try (Connection c = DriverManager.getConnection(url)) {
+            // Update delivery history with rating and feedback
+            String sql1 = "UPDATE delivery_history SET customer_rating = ?, customer_feedback = ? "
+                      + "WHERE driver_username = ? AND order_id = ?";
+            try (PreparedStatement p1 = c.prepareStatement(sql1)) {
+                p1.setInt(1, rating);
+                p1.setString(2, feedback);
+                p1.setString(3, username);
+                p1.setLong(4, orderId);
+                p1.executeUpdate();
+            }
 
-            // Update average rating
-            sql = "UPDATE drivers SET rating = (SELECT AVG(customer_rating) FROM delivery_history "
+            // Update average rating in a single query
+            String sql2 = "UPDATE drivers SET rating = (SELECT AVG(customer_rating) FROM delivery_history "
                 + "WHERE driver_username = ? AND customer_rating IS NOT NULL) WHERE username = ?";
-            try (PreparedStatement p2 = c.prepareStatement(sql)) {
+            try (PreparedStatement p2 = c.prepareStatement(sql2)) {
                 p2.setString(1, username);
                 p2.setString(2, username);
                 p2.executeUpdate();
@@ -160,6 +171,11 @@ public class DriverDatabase {
         }
     }
 
+    /**
+     * Get delivery history for a driver.
+     * WARNING: This method returns a ResultSet that must be closed by the caller,
+     * along with the underlying PreparedStatement and Connection to prevent resource leaks.
+     */
     public ResultSet getDeliveryHistory(String username) throws SQLException {
         String sql = "SELECT dh.*, o.restaurant_name, o.total_amount "
                   + "FROM delivery_history dh "
@@ -172,6 +188,12 @@ public class DriverDatabase {
         return p.executeQuery();
     }
 
+    /**
+     * Get driver statistics.
+     * WARNING: This method returns a ResultSet that must be closed by the caller,
+     * along with the underlying PreparedStatement and Connection to prevent resource leaks.
+     * Note: This method uses inefficient subqueries. Consider optimizing with JOINs or a single aggregated query.
+     */
     public ResultSet getDriverStats(String username) throws SQLException {
         String sql = "SELECT d.*, "
                   + "(SELECT COUNT(*) FROM delivery_history WHERE driver_username = d.username) as total_orders, "
