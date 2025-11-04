@@ -230,6 +230,12 @@ public class MainScreen extends JPanel {
                 return;
             }
 
+            // Validate card number using Luhn algorithm
+            if (!isValidCardNumber(cardNumber)) {
+                JOptionPane.showMessageDialog(this, "Invalid card number. Failed checksum validation.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             if (!expiry.matches("\\d{2}/\\d{2}")) {
                 JOptionPane.showMessageDialog(this, "Invalid expiry format. Use MM/YY.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
@@ -247,6 +253,32 @@ public class MainScreen extends JPanel {
                         JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    /*
+     * Validates credit card number using Luhn algorithm (mod 10 check).
+     * This is the industry standard for validating credit card numbers.
+     */
+    private boolean isValidCardNumber(String cardNumber) {
+        int sum = 0;
+        boolean alternate = false;
+        
+        // Process digits from right to left
+        for (int i = cardNumber.length() - 1; i >= 0; i--) {
+            int digit = Character.getNumericValue(cardNumber.charAt(i));
+            
+            if (alternate) {
+                digit *= 2;
+                if (digit > 9) {
+                    digit -= 9;
+                }
+            }
+            
+            sum += digit;
+            alternate = !alternate;
+        }
+        
+        return (sum % 10 == 0);
     }
 
     /*

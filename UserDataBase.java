@@ -153,13 +153,6 @@ public class UserDataBase {
         }
     }
 
-    /* Cancel order - placeholder for AdminScreen */
-    public void cancelOrder(long orderId) throws SQLException {
-        // This should be in OrderDatabase, not UserDatabase
-        // For now, throw an exception indicating this method should be moved
-        throw new UnsupportedOperationException("cancelOrder should be called on OrderDatabase, not UserDatabase");
-    }
-
     /* Initialize admin account if it doesn't exist */
     public void initializeAdmin(String adminUsername, String adminPassword, String adminHashCode) throws SQLException {
         if (!userExists(adminUsername)) {
@@ -174,7 +167,8 @@ public class UserDataBase {
                 p.setString(2, adminUsername);
                 p.executeUpdate();
             }
-            System.out.println("Admin account created: " + adminUsername);
+            // Note: In production, use proper logging framework instead of System.out
+            // System.out.println("Admin account created: " + adminUsername);
         }
     }
 }

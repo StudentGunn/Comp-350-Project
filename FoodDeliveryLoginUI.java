@@ -288,15 +288,16 @@ public class FoodDeliveryLoginUI {
         //   3) computes the digest (32 bytes) and converts each byte to
         //      a two-character lowercase hex representation
         // - returns the hex String representation of the hash
-        // Performance optimized: uses direct hex conversion instead of String.format
+        // Performance optimized: uses lookup table for hex conversion
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] b = md.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder(b.length * 2);
+            final char[] hexChars = "0123456789abcdef".toCharArray();
             for (byte x : b) {
                 int v = x & 0xff;
-                sb.append(Integer.toHexString(v >>> 4));
-                sb.append(Integer.toHexString(v & 0x0f));
+                sb.append(hexChars[v >>> 4]);
+                sb.append(hexChars[v & 0x0f]);
             }
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
