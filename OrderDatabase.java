@@ -111,6 +111,15 @@ public class OrderDatabase {
                     + "updated_by TEXT NOT NULL,"
                     + "FOREIGN KEY (order_id) REFERENCES orders(order_id)"
                     + ")");
+
+            // Add performance indexes for frequently queried columns
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_username)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_orders_driver ON orders(driver_username)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_order_updates_order ON order_updates(order_id)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_payment_trans_order ON payment_transactions(order_id)");
         }
     }
 
