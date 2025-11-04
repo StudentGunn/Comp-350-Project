@@ -229,7 +229,7 @@ public class AdminScreen extends JPanel {
 
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                parent.userDb.cancelOrder(orderId);
+                parent.orderDb.cancelOrder(orderId);
                 refreshData(); // Refresh to show updated status
                 JOptionPane.showMessageDialog(this,
                     "Order #" + orderId + " has been cancelled.",

@@ -16,6 +16,10 @@ public class UserDataBase {
         this.url = "jdbc:sqlite:" + dbPath.toAbsolutePath().toString();
     }
 
+    public String getConnectionUrl() {
+        return url;
+    }
+
     /* Create the users table if it doesn't exist. 
      * creates method init
      * trys to connect to the database
@@ -36,10 +40,17 @@ public class UserDataBase {
             s.executeUpdate("CREATE TABLE IF NOT EXISTS users ("
                     + "username TEXT PRIMARY KEY,"
                     + "password_hash TEXT NOT NULL,"
+                    + "user_type TEXT DEFAULT 'CUSTOMER',"
                     + "full_name TEXT,"
                     + "email TEXT,"
+                    + "phone TEXT,"
+                    + "admin_hash TEXT,"
                     + "created_at INTEGER"
                     + ")");
+            
+            // Add performance indexes
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_type ON users(user_type)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
         }
     }
 
@@ -51,12 +62,21 @@ public class UserDataBase {
      * returns true if the user was successfully inserted
     */
     public boolean register(String username, String passwordHash) throws SQLException {
-        String sql = "INSERT INTO users(username,password_hash,created_at) VALUES(?,?,?)";
+        return register(username, passwordHash, "CUSTOMER", null, null, null);
+    }
+
+    public boolean register(String username, String passwordHash, String userType, 
+                          String fullName, String email, String phone) throws SQLException {
+        String sql = "INSERT INTO users(username,password_hash,user_type,full_name,email,phone,created_at) VALUES(?,?,?,?,?,?,?)";
         try (Connection c = DriverManager.getConnection(url);
              PreparedStatement p = c.prepareStatement(sql)) {
             p.setString(1, username);
             p.setString(2, passwordHash);
-            p.setLong(3, Instant.now().getEpochSecond());
+            p.setString(3, userType);
+            p.setString(4, fullName);
+            p.setString(5, email);
+            p.setString(6, phone);
+            p.setLong(7, Instant.now().getEpochSecond());
             p.executeUpdate();
             return true;
         }
@@ -99,6 +119,56 @@ public class UserDataBase {
             try (ResultSet rs = p.executeQuery()) {
                 return rs.next();
             }
+        }
+    }
+
+    /* Get user type for a username */
+    public String getUserType(String username) throws SQLException {
+        String sql = "SELECT user_type FROM users WHERE username = ?";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setString(1, username);
+            try (ResultSet rs = p.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+                return null;
+            }
+        }
+    }
+
+    /* Verify admin hash code */
+    public boolean verifyAdminHash(String username, String hashCode) throws SQLException {
+        String sql = "SELECT admin_hash FROM users WHERE username = ?";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setString(1, username);
+            try (ResultSet rs = p.executeQuery()) {
+                if (rs.next()) {
+                    String stored = rs.getString(1);
+                    return stored != null && stored.equals(hashCode);
+                }
+                return false;
+            }
+        }
+    }
+
+    /* Initialize admin account if it doesn't exist */
+    public void initializeAdmin(String adminUsername, String adminPassword, String adminHashCode) throws SQLException {
+        if (!userExists(adminUsername)) {
+            // Register admin with ADMIN user type
+            register(adminUsername, adminPassword, "ADMIN", "System Administrator", "admin@fooddelivery.com", "000-000-0000");
+            
+            // Set the admin hash code
+            String sql = "UPDATE users SET admin_hash = ? WHERE username = ?";
+            try (Connection c = DriverManager.getConnection(url);
+                 PreparedStatement p = c.prepareStatement(sql)) {
+                p.setString(1, adminHashCode);
+                p.setString(2, adminUsername);
+                p.executeUpdate();
+            }
+            // Note: In production, use proper logging framework instead of System.out
+            // System.out.println("Admin account created: " + adminUsername);
         }
     }
 }

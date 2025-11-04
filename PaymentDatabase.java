@@ -65,6 +65,13 @@ public class PaymentDatabase {
                     + "FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id),"
                     + "FOREIGN KEY (order_id) REFERENCES orders(id)"
                     + ")");
+
+            // Add performance indexes for frequently queried columns
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_payment_methods_user ON payment_methods(username)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_payment_methods_active ON payment_methods(is_active)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_payment_trans_method ON payment_transactions(payment_method_id)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_payment_trans_order ON payment_transactions(order_id)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_payment_trans_status ON payment_transactions(status)");
         }
     }
 

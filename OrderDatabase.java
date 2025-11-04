@@ -111,6 +111,15 @@ public class OrderDatabase {
                     + "updated_by TEXT NOT NULL,"
                     + "FOREIGN KEY (order_id) REFERENCES orders(order_id)"
                     + ")");
+
+            // Add performance indexes for frequently queried columns
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_username)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_orders_driver ON orders(driver_username)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_order_updates_order ON order_updates(order_id)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_payment_trans_order ON payment_transactions(order_id)");
         }
     }
 
@@ -231,6 +240,24 @@ public class OrderDatabase {
         }
     }
 
+    /**
+     * Get order details by order ID.
+     * WARNING: This method returns a ResultSet that must be closed by the caller,
+     * along with the underlying PreparedStatement and Connection.
+     * Consider refactoring to return a DTO instead to prevent resource leaks.
+     * 
+     * Usage example:
+     *   ResultSet rs = db.getOrderDetails(orderId);
+     *   try {
+     *     // process results
+     *   } finally {
+     *     if (rs != null) {
+     *       rs.getStatement().getConnection().close(); // Close connection
+     *       rs.getStatement().close(); // Close statement
+     *       rs.close(); // Close result set
+     *     }
+     *   }
+     */
     public ResultSet getOrderDetails(long orderId) throws SQLException {
         String sql = "SELECT o.*, "
                   + "(SELECT GROUP_CONCAT(item_name || ' x' || quantity) FROM order_items WHERE order_id = o.order_id) as items "
@@ -241,6 +268,11 @@ public class OrderDatabase {
         return p.executeQuery();
     }
 
+    /**
+     * Get order items for a specific order.
+     * WARNING: This method returns a ResultSet that must be closed by the caller,
+     * along with the underlying PreparedStatement and Connection to prevent resource leaks.
+     */
     public ResultSet getOrderItems(long orderId) throws SQLException {
         String sql = "SELECT * FROM order_items WHERE order_id = ?";
         Connection c = DriverManager.getConnection(url);
@@ -249,6 +281,11 @@ public class OrderDatabase {
         return p.executeQuery();
     }
 
+    /**
+     * Get order history for a user.
+     * WARNING: This method returns a ResultSet that must be closed by the caller,
+     * along with the underlying PreparedStatement and Connection to prevent resource leaks.
+     */
     public ResultSet getOrderHistory(String username, String userType) throws SQLException {
         String sql = "SELECT o.*, "
                   + "(SELECT GROUP_CONCAT(item_name || ' x' || quantity) FROM order_items WHERE order_id = o.order_id) as items "
@@ -294,6 +331,11 @@ public class OrderDatabase {
         }
     }
 
+    /**
+     * Get pending orders.
+     * WARNING: This method returns a ResultSet that must be closed by the caller,
+     * along with the underlying PreparedStatement and Connection to prevent resource leaks.
+     */
     public ResultSet getPendingOrders() throws SQLException {
         String sql = "SELECT o.*, "
                   + "(SELECT GROUP_CONCAT(item_name || ' x' || quantity) FROM order_items WHERE order_id = o.order_id) as items "
@@ -301,5 +343,21 @@ public class OrderDatabase {
         Connection c = DriverManager.getConnection(url);
         PreparedStatement p = c.prepareStatement(sql);
         return p.executeQuery();
+    }
+
+    /* Cancel an order */
+    public void cancelOrder(long orderId) throws SQLException {
+        String sql = "UPDATE orders SET status = 'CANCELLED' WHERE order_id = ?";
+        try (Connection c = DriverManager.getConnection(url);
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setLong(1, orderId);
+            int updated = p.executeUpdate();
+            if (updated == 0) {
+                throw new SQLException("Order not found");
+            }
+            
+            // Record the cancellation in order_updates
+            recordOrderUpdate(orderId, "CANCELLED", "Order cancelled by admin", "admin");
+        }
     }
 }
