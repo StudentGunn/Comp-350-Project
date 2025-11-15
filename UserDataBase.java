@@ -167,8 +167,7 @@ public class UserDataBase {
                 p.setString(2, adminUsername);
                 p.executeUpdate();
             }
-            // Note: In production, use proper logging framework instead of System.out
-            // System.out.println("Admin account created: " + adminUsername);
+            
         }
     }
 }
