@@ -6,6 +6,13 @@
       "name": "MainApp",
       "request": "launch",
       "mainClass": "MainApp",
+      "projectName": "Comp-350-Project_e7aadd1b"
+    },
+    {
+      "type": "java",
+      "name": "MainApp",
+      "request": "launch",
+      "mainClass": "MainApp",
       "projectName": "Comp-350-Project_e73741f8"
     },
     {
